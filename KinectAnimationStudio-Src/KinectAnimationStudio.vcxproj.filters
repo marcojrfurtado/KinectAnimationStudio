@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\UI">
+      <UniqueIdentifier>{9e70229c-42e6-46df-a282-d0020ce3a380}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UI">
+      <UniqueIdentifier>{bb371d6a-0e5a-418f-9940-d83ceb52d348}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\common">
+      <UniqueIdentifier>{7f9d946f-c53c-461a-8bfa-7dc36aba5011}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\kinect">
+      <UniqueIdentifier>{094175db-6f17-4e96-ba10-9be08344145c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\kinect">
+      <UniqueIdentifier>{58b9fded-6fd9-467c-ae28-053266d8c0e5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="UI\FBX_banner_545x132_SDK.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="UI\UI.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="UI\UI.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="UI\UI.h">
+      <Filter>Header Files\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="common\stdafx.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\resource.h">
+      <Filter>Header Files\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="kinect\KBodyVisualizer.h">
+      <Filter>Header Files\kinect</Filter>
+    </ClInclude>
+    <ClInclude Include="kinect\KBodyExporter.h">
+      <Filter>Header Files\kinect</Filter>
+    </ClInclude>
+    <ClInclude Include="kinect\KBodyReader.h">
+      <Filter>Header Files\kinect</Filter>
+    </ClInclude>
+    <ClInclude Include="kinect\KinectFrameProcessor.h">
+      <Filter>Header Files\kinect</Filter>
+    </ClInclude>
+    <ClInclude Include="kinect\kinect_typedef.h">
+      <Filter>Header Files\kinect</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="kinect\KBodyVisualizer.cpp">
+      <Filter>Source Files\kinect</Filter>
+    </ClCompile>
+    <ClCompile Include="kinect\KBodyExporter.cpp">
+      <Filter>Source Files\kinect</Filter>
+    </ClCompile>
+    <ClCompile Include="kinect\KBodyReader.cpp">
+      <Filter>Source Files\kinect</Filter>
+    </ClCompile>
+    <ClCompile Include="kinect\KinectFrameProcessor.cpp">
+      <Filter>Source Files\kinect</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UI.cpp">
+      <Filter>Source Files\UI</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
