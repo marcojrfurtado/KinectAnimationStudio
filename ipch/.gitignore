@@ -1,0 +1,3 @@
+# Ignore everything here, pre-compiled headers can be generated somewhere else
+*
+!/.gitignore

@@ -1,0 +1,4 @@
+# ignore any file here, except for the dlls we manually place
+*
+!/.gitignore
+!*.dll
