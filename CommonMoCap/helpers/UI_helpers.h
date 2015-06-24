@@ -15,4 +15,14 @@ void UI_Printf(
 	...
 	);
 
+// show the <Open file> dialog
+void GetInputFileName(HWND hWndParent, char *gszInputFile);
+// show the <Open file> dialog
+void GetOutputFileName(HWND hWndParent, char *gszOutputFile);
+
+// check if in the filepath the file extention exist
+bool ExtExist(
+	const char * filepath,
+	const char * ext
+	);
 

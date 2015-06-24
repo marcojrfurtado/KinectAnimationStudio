@@ -16,7 +16,6 @@ TCHAR szWindowClass[MAX_LOADSTRING];    // the main window class name
 
 char gszInputFile[_MAX_PATH];            // File name to import
 char gszOutputFile[_MAX_PATH];           // File name to decompress
-int  gWriteFileFormat = -1;             // Write file format
 
 // Global FBX SDK manager
 FbxManager *gSdkManager;
@@ -36,9 +35,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void CreateUIControls(HWND hWndParent);
-void GetInputFileName(HWND hWndParent);
-void GetOutputFileName(HWND hWndParent);
-void ExecuteImportExport(HWND hWndParent);
+
 
 // used to show messages from the ImportExport.cxx file
 // void UI_Printf(const char* msg, ...);
@@ -144,8 +141,8 @@ BOOL InitInstance(
 		WS_OVERLAPPED | WS_SYSMENU,           // DWORD dwStyle
 		400,                                  // int x
 		200,                                  // int Y
-		800,                                  // int nWidth
-		500,                                  // int nHeight
+		700,                                  // int nWidth
+		520,                                  // int nHeight
 		NULL,                                 // HWND hWndParent
 		NULL,                                 // HMENU hMenu
 		hInstance,                            // HINSTANCE hInstance
@@ -210,11 +207,16 @@ LRESULT CALLBACK WndProc(
 			break;
 
 		case IMPORT_FROM_BUTTON:
-			GetInputFileName(hWnd);
+			GetInputFileName(hWnd,gszInputFile);
+			break;
+
+		case EXPORT_TO_BUTTON:
+			GetOutputFileName(hWnd, gszOutputFile);
 			break;
 
 		case START_SERVER_BUTTON:
 			UI_Printf("Server Mode has been enabled");
+			transmitter.startServer();
 			break;
 
 		case SEND_FILE_BUTTON:
@@ -226,6 +228,28 @@ LRESULT CALLBACK WndProc(
 				transmitter.transmit(gszInputFile);
 				UI_Printf("End of transmission");
 			}
+			break;
+		case UPDATE_SERVER_CLIENT_PORT_BUTTON:
+			// Update port
+			char portSetStr[10];
+			int portSet;
+			GetWindowText(GetDlgItem(hWnd, SET_SERVER_CLIENT_PORT_EDIT), portSetStr, 10);
+
+			portSet = atoi(portSetStr);
+			if (portSet <= 0) {
+				UI_Printf("Invalid port number.");
+			}
+			else {
+				transmitter.setPort(portSet);
+				UI_Printf("Port has been updated to %d", portSet);
+			}
+			break;
+		case UPDATE_CLIENT_CONNECT_ADDRESS_BUTTON:
+			// Update address
+			char addressStr[50];
+			GetWindowText(GetDlgItem(hWnd, SET_CLIENT_CONNECT_ADDRESS_EDIT), addressStr, 50);
+			transmitter.setConnectAddress(addressStr);
+			UI_Printf("Client connection address has been updated to %s.",addressStr);
 			break;
 
 		default:
@@ -287,6 +311,7 @@ void CreateUIControls(
 	HWND hWndParent
 	)
 {
+	HWND hwnd_sub_handler;
 	DWORD dwStyle = WS_CHILD | WS_VISIBLE;
 
 	// create the <Import from> button
@@ -305,6 +330,22 @@ void CreateUIControls(
 		NULL                        // LPVOID lpParam
 		);
 
+	// create the <Export to> button
+	CreateWindowEx(
+		0,                          // DWORD dwExStyle,
+		"BUTTON",                   // LPCTSTR lpClassName
+		"Export to ...",          // LPCTSTR lpWindowName / control caption
+		dwStyle,                    // DWORD dwStyle
+		10,                         // int x
+		50,                         // int y
+		130,                        // int nWidth
+		30,                         // int nHeight    
+		hWndParent,                 // HWND hWndParent
+		(HMENU)EXPORT_TO_BUTTON, // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                      // HINSTANCE hInstance
+		NULL                        // LPVOID lpParam
+		);
+
 	// create the <Import from> button
 	CreateWindowEx(
 		0,                          // DWORD dwExStyle,
@@ -312,7 +353,7 @@ void CreateUIControls(
 		"Send File (Client)",          // LPCTSTR lpWindowName / control caption
 		dwStyle,                    // DWORD dwStyle
 		10,                         // int x
-		50,                         // int y
+		90,                         // int y
 		130,                        // int nWidth
 		30,                         // int nHeight    
 		hWndParent,                 // HWND hWndParent
@@ -320,6 +361,8 @@ void CreateUIControls(
 		hInst,                      // HINSTANCE hInstance
 		NULL                        // LPVOID lpParam
 		);
+
+
 	
 	// create the <Start Server> button
 	CreateWindowEx(
@@ -328,7 +371,7 @@ void CreateUIControls(
 		"Start Server",            // LPCTSTR lpWindowName / control caption
 		dwStyle,                    // DWORD dwStyle
 		10,                         // int x
-		90,                         // int y
+		130,                         // int y
 		130,                        // int nWidth
 		30,                         // int nHeight    
 		hWndParent,                 // HWND hWndParent
@@ -353,6 +396,22 @@ void CreateUIControls(
 		NULL                            // LPVOID lpParam
 		);
 
+	// create the <Export to> edit box
+	CreateWindowEx(
+		WS_EX_STATICEDGE,               // DWORD dwExStyle,
+		"EDIT",                         // LPCTSTR lpClassName
+		" <- select a file to export",  // LPCTSTR lpWindowName / control caption
+		dwStyle | ES_AUTOHSCROLL,         // DWORD dwStyle
+		150,                            // int x
+		50,                             // int y
+		530,                            // int nWidth
+		20,                             // int nHeight    
+		hWndParent,                     // HWND hWndParent
+		(HMENU)EXPORT_TO_EDITBOX,    // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                          // HINSTANCE hInstance
+		NULL                            // LPVOID lpParam
+		);
+
 	// create the <Execute Status> edit box
 	DWORD dwStyle_Edit = ES_AUTOHSCROLL | ES_MULTILINE | WS_HSCROLL | WS_VSCROLL;
 	CreateWindowEx(
@@ -361,206 +420,104 @@ void CreateUIControls(
 		"",                                 // LPCTSTR lpWindowName / control caption
 		dwStyle | dwStyle_Edit,             // DWORD dwStyle
 		150,                                // int x
-		50,                                 // int y
+		85,                                 // int y
 		530,                                // int nWidth
-		350,                                // int nHeight    
+		365,                                // int nHeight    
 		hWndParent,                         // HWND hWndParent
 		(HMENU)EXECUTE_STATUS,             // HMENU hMenu or control's ID for WM_COMMAND 
 		hInst,                              // HINSTANCE hInstance
 		NULL                                // LPVOID lpParam
 		);
-}
 
-// show the <Open file> dialog
-void GetInputFileName(
-	HWND hWndParent
-	)
-{
-	OPENFILENAME ofn;
-	ZeroMemory(&ofn, sizeof(ofn));
+	// Label: Set client or server port
+	hwnd_sub_handler = CreateWindow("static", "ST_U",
+		WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+		10,									// int x
+		250,									// int y
+		130,									// int nWidth
+		30,									// int nHeight 
+		hWndParent,
+		(HMENU)SET_SERVER_CLIENT_PORT_LABEL,
+		hInst, NULL);
+	SetWindowText(hwnd_sub_handler, "Default port:");
 
-	char szFile[_MAX_PATH];  // buffer for file name
-	ZeroMemory(szFile, sizeof(szFile));
+	char defaultPort[10];
+	sprintf_s(defaultPort, "%d", transmitter.getPort());
+	// Editbox: Set client or server port
+	CreateWindowEx(
+		WS_EX_STATICEDGE,               // DWORD dwExStyle,
+		"EDIT",                         // LPCTSTR lpClassName
+		defaultPort,  // LPCTSTR lpWindowName / control caption
+		dwStyle | ES_AUTOHSCROLL,         // DWORD dwStyle
+		10,                            // int x
+		280,                             // int y
+		130,                            // int nWidth
+		20,                             // int nHeight    
+		hWndParent,                     // HWND hWndParent
+		(HMENU)SET_SERVER_CLIENT_PORT_EDIT,    // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                          // HINSTANCE hInstance
+		NULL                            // LPVOID lpParam
+		);
 
-	// Initialize OPENFILENAME
-	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = hWndParent;
-	ofn.lpstrFile = szFile;
-	ofn.nMaxFile = sizeof(szFile);
-	ofn.nFilterIndex = 1;
-	ofn.lpstrFileTitle = NULL;
-	ofn.nMaxFileTitle = 0;
-	ofn.lpstrInitialDir = NULL;
-	ofn.lpstrTitle = "Select the file to import from ... (use the file type filter)";
-	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	// create the <Update port> button
+	CreateWindowEx(
+		0,               // DWORD dwExStyle,
+		"BUTTON",                         // LPCTSTR lpClassName
+		"Update Port",  // LPCTSTR lpWindowName / control caption
+		dwStyle,         // DWORD dwStyle
+		10,                            // int x
+		310,                             // int y
+		130,                            // int nWidth
+		20,                             // int nHeight    
+		hWndParent,                     // HWND hWndParent
+		(HMENU)UPDATE_SERVER_CLIENT_PORT_BUTTON,    // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                          // HINSTANCE hInstance
+		NULL                            // LPVOID lpParam
+		);
 
-	// get a description of all readers registered in the FBX SDK
-	const char *filter = GetReaderOFNFilters();
-	ofn.lpstrFilter = filter;
+	// Label: Set client or server address
+	hwnd_sub_handler = CreateWindow("static", "ST_U",
+		WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+		10,									// int x
+		370,									// int y
+		130,									// int nWidth
+		30,									// int nHeight 
+		hWndParent,
+		(HMENU)SET_CLIENT_CONNECT_ADDRESS_LABEL,
+		hInst, NULL);
+	SetWindowText(hwnd_sub_handler, "Default address:");
 
-	// Display the Open dialog box. 
-	if (GetOpenFileName(&ofn) == false)
-	{
-		// user cancel
-		delete filter;
-		return;
-	}
+	char defaultAddress[50];
+	sprintf_s(defaultAddress, "%s", transmitter.getConnectAddress());
+	// Editbox: Set client or server address
+	CreateWindowEx(
+		WS_EX_STATICEDGE,               // DWORD dwExStyle,
+		"EDIT",                         // LPCTSTR lpClassName
+		defaultAddress,  // LPCTSTR lpWindowName / control caption
+		dwStyle | ES_AUTOHSCROLL,         // DWORD dwStyle
+		10,                            // int x
+		400,                             // int y
+		130,                            // int nWidth
+		20,                             // int nHeight    
+		hWndParent,                     // HWND hWndParent
+		(HMENU)SET_CLIENT_CONNECT_ADDRESS_EDIT,    // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                          // HINSTANCE hInstance
+		NULL                            // LPVOID lpParam
+		);
 
-	delete filter;
-
-	// show the file name selected
-	SetWindowText(GetDlgItem(hWndParent, IMPORT_FROM_EDITBOX), szFile);
-
-	// Keep a copy of the file name
-	FBXSDK_strcpy(gszInputFile, _MAX_PATH, szFile);
-}
-
-// show the <Save file> dialog
-void GetOutputFileName(
-	HWND hWndParent
-	)
-{
-	OPENFILENAME ofn;
-	ZeroMemory(&ofn, sizeof(ofn));
-
-	char szFile[_MAX_PATH];  // buffer for file name
-	ZeroMemory(szFile, sizeof(szFile));
-
-	// Initialize OPENFILENAME
-	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = hWndParent;
-	ofn.lpstrFile = szFile;
-	ofn.nMaxFile = sizeof(szFile) / sizeof(*szFile);
-	ofn.nFilterIndex = 1;      // *.fbx binairy by default
-	ofn.lpstrFileTitle = NULL;
-	ofn.nMaxFileTitle = 0;
-	ofn.lpstrInitialDir = NULL;
-	ofn.lpstrTitle = "Select the file to export to ... (use the file type filter)";
-	ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT;
-
-	// get a description of all writers registered in the FBX SDK
-	const char *filter = GetWriterSFNFilters();
-	ofn.lpstrFilter = filter;
-
-	// Display the save as dialog box. 
-	if (GetSaveFileName(&ofn) == false)
-	{
-		// User cancel ...
-		delete filter;
-		return;
-	}
-
-	delete filter;
-
-	// keep the selected file format writer
-	// ofn.nFilterIndex is not 0 based but start at 1, the FBX SDK file format enum start at 0
-	gWriteFileFormat = ofn.nFilterIndex - 1;
-
-	// get the extention string from the file format selected by the user
-	const char * ext = GetFileFormatExt(gWriteFileFormat);
-
-	// check for file extention
-	if (ExtExist(szFile, ext) == false)
-	{
-		// add the selected file extention
-		FBXSDK_strcat(szFile, _MAX_PATH, ext);
-	}
-
-	delete ext;
-
-	// show the file name selected with the extention
-	SetWindowText(GetDlgItem(hWndParent, DECOMPRESS_TO_EDITBOX), szFile);
-
-	// Keep a copy of the file name
-	FBXSDK_strcpy(gszOutputFile, _MAX_PATH, szFile);
-}
-/*
-// make the Import/Export 
-void ExecuteImportExport(
-	HWND hWndParent
-	)
-{
-	bool compressMode = false, decompressMode = false;
-
-	// empty the execute status editbox
-	SetWindowText(GetDlgItem(ghWnd, EXECUTE_STATUS), "");
-
-	size_t inputSize = strlen(gszInputFile), outputSize = strlen(gszOutputFile);
-
-	// Compress mode 
-	if ((inputSize != 0) && (compresSize != 0)) {
-		compressMode = true;
-
-	}
-	else if ((inputSize == 0) && (compresSize == 0)) {
-		UI_Printf("Error: No import/compress file name selected.");
-		return;
-	}
-
-	// Decompress mode 
-	if ((compresSize != 0) && (outputSize != 0))
-	{
-		decompressMode = true;
-
-	}
-	else if ((compresSize == 0) && (outputSize == 0)) {
-		UI_Printf("Error: No compressed/export file name selected.");
-		return;
-	}
-
-	// get last changes from user
-	if (compressMode)
-		GetWindowText(GetDlgItem(hWndParent, IMPORT_FROM_EDITBOX), gszInputFile, _MAX_PATH);
-
-	GetWindowText(GetDlgItem(hWndParent, COMPRESS_TO_EDITBOX), gszCompressedFile, _MAX_PATH);
-
-	if (decompressMode)
-		GetWindowText(GetDlgItem(hWndParent, DECOMPRESS_TO_EDITBOX), gszOutputFile, _MAX_PATH);
-
-	// check if the file to import still exist
-	if (FbxFileUtils::Exist(gszInputFile) == false)
-	{
-		UI_Printf("Error: Import file not found.");
-		return;
-	}
-
-	//Only applied if we are not decompressing
-	if (!compressMode && decompressMode && FbxFileUtils::Exist(gszCompressedFile) == false) {
-		UI_Printf("Error: Compressed file not found.");
-		return;
-	}
-
-	// show a wait cursor
-	HCURSOR oldCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
-
-	// OK now we have valid files names
-	// call the ImportExport function from ImportExport.cxx
-	//ImportCompressExport(gszInputFile, gszCompressedFile , gszOutputFile, gWriteFileFormat);
-
-	// reset to default cursor
-	SetCursor(oldCursor);
-}
-*/
-
-
-// check if in the filepath the file extention exist
-bool ExtExist(
-	const char * filepath,
-	const char * ext
-	)
-{
-	int iExtLen = (int)strlen(ext);
-	int ifpLen = (int)strlen(filepath);
-
-	if (ifpLen < iExtLen) return false;
-
-	int x = ifpLen - iExtLen;
-
-	for (int i = 0; i < iExtLen; i++)
-	{
-		if (filepath[x] != ext[i]) return false;
-		x++;
-	}
-
-	return true;
+	// Create the <Update Address> button
+	CreateWindowEx(
+		0,               // DWORD dwExStyle,
+		"BUTTON",                         // LPCTSTR lpClassName
+		"Update Address",  // LPCTSTR lpWindowName / control caption
+		dwStyle,         // DWORD dwStyle
+		10,                            // int x
+		430,                             // int y
+		130,                            // int nWidth
+		20,                             // int nHeight    
+		hWndParent,                     // HWND hWndParent
+		(HMENU)UPDATE_CLIENT_CONNECT_ADDRESS_BUTTON,    // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                          // HINSTANCE hInstance
+		NULL                            // LPVOID lpParam
+		);
 }

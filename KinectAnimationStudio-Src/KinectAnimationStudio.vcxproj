@@ -34,11 +34,13 @@
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\Project.props" />
+    <Import Project="..\KinectProject.props" />
+    <Import Project="..\FBXProject.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\Project.props" />
+    <Import Project="..\KinectProject.props" />
+    <Import Project="..\FBXProject.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -104,8 +106,8 @@
     <ResourceCompile Include="UI\UI.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CommonMoCap\CommonMoCap.vcxproj">
-      <Project>{7f525177-77ee-4adf-81d8-9e4c726e37bb}</Project>
+    <ProjectReference Include="..\CommonKinect\CommonKinect.vcxproj">
+      <Project>{50182805-3d70-46ee-b4cf-01e7a0f5b5b2}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

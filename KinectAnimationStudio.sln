@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FBXStreaming", "FBXStreamin
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommonMoCap", "CommonMoCap\CommonMoCap.vcxproj", "{7F525177-77EE-4ADF-81D8-9E4C726E37BB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommonKinect", "CommonKinect\CommonKinect.vcxproj", "{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -48,6 +50,16 @@ Global
 		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|Win32.ActiveCfg = Release|x64
 		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|x64.ActiveCfg = Release|x64
 		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|x64.Build.0 = Release|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|Mixed Platforms.ActiveCfg = Debug|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|Mixed Platforms.Build.0 = Debug|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|Win32.ActiveCfg = Debug|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|x64.ActiveCfg = Debug|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|x64.Build.0 = Debug|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Release|Mixed Platforms.ActiveCfg = Release|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Release|Mixed Platforms.Build.0 = Release|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Release|Win32.ActiveCfg = Release|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Release|x64.ActiveCfg = Release|x64
+		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

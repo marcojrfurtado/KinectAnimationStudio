@@ -522,27 +522,3 @@ void GetOutputFileName(
     // Keep a copy of the file name
     FBXSDK_strcpy(gszOutputFile, _MAX_PATH, szFile);
 }
-
-
-
-// check if in the filepath the file extention exist
-bool ExtExist(
-              const char * filepath, 
-              const char * ext
-              )
-{
-    int iExtLen = (int)strlen(ext);
-    int ifpLen  = (int)strlen(filepath);
-
-    if( ifpLen < iExtLen) return false;
-
-    int x = ifpLen - iExtLen;
-
-    for(int i=0; i < iExtLen; i++)
-    {
-        if(filepath[x] != ext[i] ) return false;
-        x++;
-    }
-
-    return true;
-}

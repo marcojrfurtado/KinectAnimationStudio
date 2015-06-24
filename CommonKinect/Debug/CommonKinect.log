@@ -1,0 +1,33 @@
+﻿Build started 6/24/2015 10:03:04 AM.
+     1>Project "C:\Users\AntonioCarlos\Documents\GitHub\KinectAnimationStudio\CommonKinect\CommonKinect.vcxproj" on node 2 (Build target(s)).
+     1>PrepareForBuild:
+         Creating directory "C:\Users\AntonioCarlos\Documents\GitHub\KinectAnimationStudio\Debug\".
+         Creating directory "Debug\CommonKinect.tlog\".
+       InitializeBuildStatus:
+         Creating "Debug\CommonKinect.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yc"stdafx.h" /Fp"Debug\CommonKinect.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt stdafx.cpp
+         stdafx.cpp
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\CommonKinect.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt helpers\Kinect_Helpers.cpp kinect2fbx\HierarchyNodeDefinition.cpp kinect2fbx\KinectSkeletonMapper.cpp
+         KinectSkeletonMapper.cpp
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\kinect2fbx\kinectskeletonmapper.cpp(1): warning C4627: '#include "KinectSkeletonMapper.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\kinect2fbx\kinectskeletonmapper.cpp(2): warning C4627: '#include "..\helpers\FBX_helpers.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\kinect2fbx\kinectskeletonmapper.cpp(544): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "stdafx.h"' to your source?
+         HierarchyNodeDefinition.cpp
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\kinect2fbx\hierarchynodedefinition.cpp(1): warning C4627: '#include "HierarchyNodeDefinition.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\kinect2fbx\hierarchynodedefinition.cpp(129): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "stdafx.h"' to your source?
+         Kinect_Helpers.cpp
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\helpers\kinect_helpers.cpp(1): warning C4627: '#include "Kinect_helpers.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\helpers\kinect_helpers.cpp(2): warning C4627: '#include "UI_helpers.h"': skipped when looking for precompiled header use
+                 Add directive to 'stdafx.h' or rebuild precompiled header
+     1>c:\users\antoniocarlos\documents\github\kinectanimationstudio\commonkinect\helpers\kinect_helpers.cpp(79): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "stdafx.h"' to your source?
+         Generating Code...
+     1>Done Building Project "C:\Users\AntonioCarlos\Documents\GitHub\KinectAnimationStudio\CommonKinect\CommonKinect.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:03.14

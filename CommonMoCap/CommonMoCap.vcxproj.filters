@@ -19,12 +19,6 @@
     <Filter Include="Header Files\helpers">
       <UniqueIdentifier>{05093f4e-8c56-4fca-8361-a991485eae75}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\kinect2fbx">
-      <UniqueIdentifier>{260cd213-02d1-4782-b76d-6ad56cb5dd4d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\kinect2fbx">
-      <UniqueIdentifier>{6193e2f9-27b7-46cb-ab31-daf9f51997f4}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -36,25 +30,13 @@
     <ClInclude Include="helpers\FBX_helpers.h">
       <Filter>Header Files\helpers</Filter>
     </ClInclude>
-    <ClInclude Include="helpers\Kinect_helpers.h">
-      <Filter>Header Files\helpers</Filter>
-    </ClInclude>
     <ClInclude Include="helpers\UI_helpers.h">
       <Filter>Header Files\helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="CommonMocap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="kinect2fbx\HierarchyNodeDefinition.h">
-      <Filter>Header Files\kinect2fbx</Filter>
-    </ClInclude>
-    <ClInclude Include="kinect2fbx\KinectSkeletonMapper.h">
-      <Filter>Header Files\kinect2fbx</Filter>
     </ClInclude>
     <ClInclude Include="helpers\WindowIDS.h">
       <Filter>Header Files\helpers</Filter>
     </ClInclude>
-    <ClInclude Include="CommonMocapFBX.h">
+    <ClInclude Include="CommonMocap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -68,17 +50,8 @@
     <ClCompile Include="helpers\FBX_helpers.cpp">
       <Filter>Source Files\helpers</Filter>
     </ClCompile>
-    <ClCompile Include="helpers\Kinect_Helpers.cpp">
-      <Filter>Source Files\helpers</Filter>
-    </ClCompile>
     <ClCompile Include="helpers\UI_helpers.cpp">
       <Filter>Source Files\helpers</Filter>
-    </ClCompile>
-    <ClCompile Include="kinect2fbx\HierarchyNodeDefinition.cpp">
-      <Filter>Source Files\kinect2fbx</Filter>
-    </ClCompile>
-    <ClCompile Include="kinect2fbx\KinectSkeletonMapper.cpp">
-      <Filter>Source Files\kinect2fbx</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

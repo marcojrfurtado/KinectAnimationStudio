@@ -15,7 +15,8 @@ FbxAMatrix FBXJointConverter::c_mIdentity = FbxAMatrix();
 /// <param name="pScene">FBX Scene</param>
 /// <param name="sNode">Skeleton root node</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-void FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode)  {
+/// <return>Node representing marker Set</return>
+FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode)  {
 
 	const char *nodeName = sNode->GetName();
 
@@ -66,9 +67,8 @@ void FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode)  {
 	}
 
 
-
-
-
+	// Return  set of markers that was created
+	return markerSet;
 
 }
 

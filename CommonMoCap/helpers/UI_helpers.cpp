@@ -1,5 +1,5 @@
 #include "UI_helpers.h"
-
+#include "FBX_helpers.h"
 
 
 
@@ -63,4 +63,133 @@ void UI_Printf(
 
 	// scroll to bottom
 	SendMessage(hWndStatus, (UINT)EM_SCROLL, SB_BOTTOM, (LPARAM)0);
+}
+
+
+// show the <Open file> dialog
+void GetInputFileName(
+	HWND hWndParent, char *gszInputFile
+	)
+{
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+
+	char szFile[_MAX_PATH];  // buffer for file name
+	ZeroMemory(szFile, sizeof(szFile));
+
+	// Initialize OPENFILENAME
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = hWndParent;
+	ofn.lpstrFile = szFile;
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.lpstrTitle = "Select the file to import from ... (use the file type filter)";
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+	// get a description of all readers registered in the FBX SDK
+	const char *filter = GetReaderOFNFilters();
+	ofn.lpstrFilter = filter;
+
+	// Display the Open dialog box. 
+	if (GetOpenFileName(&ofn) == false)
+	{
+		// user cancel
+		delete filter;
+		return;
+	}
+
+	delete filter;
+
+	// show the file name selected
+	SetWindowText(GetDlgItem(hWndParent, IMPORT_FROM_EDITBOX), szFile);
+
+	// Keep a copy of the file name
+	FBXSDK_strcpy(gszInputFile, _MAX_PATH, szFile);
+}
+
+// show the <Save file> dialog
+void GetOutputFileName(
+	HWND hWndParent, char *gszOutputFile
+	)
+{
+	int  gWriteFileFormat = -1;             // Write file format
+
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+
+	char szFile[_MAX_PATH];  // buffer for file name
+	ZeroMemory(szFile, sizeof(szFile));
+
+	// Initialize OPENFILENAME
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = hWndParent;
+	ofn.lpstrFile = szFile;
+	ofn.nMaxFile = sizeof(szFile) / sizeof(*szFile);
+	ofn.nFilterIndex = 1;      // *.fbx binairy by default
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.lpstrTitle = "Select the file to export to ... (use the file type filter)";
+	ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT;
+
+	// get a description of all writers registered in the FBX SDK
+	const char *filter = GetWriterSFNFilters();
+	ofn.lpstrFilter = filter;
+
+	// Display the save as dialog box. 
+	if (GetSaveFileName(&ofn) == false)
+	{
+		// User cancel ...
+		delete filter;
+		return;
+	}
+
+	delete filter;
+
+	// keep the selected file format writer
+	// ofn.nFilterIndex is not 0 based but start at 1, the FBX SDK file format enum start at 0
+	gWriteFileFormat = ofn.nFilterIndex - 1;
+
+	// get the extention string from the file format selected by the user
+	const char * ext = GetFileFormatExt(gWriteFileFormat);
+
+	// check for file extention
+	if (ExtExist(szFile, ext) == false)
+	{
+		// add the selected file extention
+		FBXSDK_strcat(szFile, _MAX_PATH, ext);
+	}
+
+	delete ext;
+
+	// show the file name selected with the extention
+	SetWindowText(GetDlgItem(hWndParent, DECOMPRESS_TO_EDITBOX), szFile);
+
+	// Keep a copy of the file name
+	FBXSDK_strcpy(gszOutputFile, _MAX_PATH, szFile);
+}
+
+// check if in the filepath the file extention exist
+bool ExtExist(
+	const char * filepath,
+	const char * ext
+	)
+{
+	int iExtLen = (int)strlen(ext);
+	int ifpLen = (int)strlen(filepath);
+
+	if (ifpLen < iExtLen) return false;
+
+	int x = ifpLen - iExtLen;
+
+	for (int i = 0; i < iExtLen; i++)
+	{
+		if (filepath[x] != ext[i]) return false;
+		x++;
+	}
+
+	return true;
 }

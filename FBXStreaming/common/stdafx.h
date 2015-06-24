@@ -25,11 +25,24 @@
 #endif
 
 // Windows Header Files:
+// Stop Window.h from definition socks
+#define _WINSOCKAPI_ 
 #include <windows.h>
 
 
 // Common mocap helper
-#include "CommonMoCap\CommonMocapFBX.h"
+#include "CommonMoCap\CommonMocap.h"
 
 // Additional headers your program requires here
+// FBX SDK
 #include <fbxsdk.h>
+
+
+// c++ std libraries
+#include <atomic>
+
+// WIN Libraries
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#pragma comment(lib, "Ws2_32.lib")

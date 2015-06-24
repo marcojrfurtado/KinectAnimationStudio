@@ -59,7 +59,7 @@
 #include <d2d1.h>
 
 // Library containing helpers
-#include "CommonMoCap\CommonMocap.h"
+#include "CommonKinect\CommmonKinect.h"
 
 
 // Safe release for interfaces

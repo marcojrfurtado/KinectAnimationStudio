@@ -10,7 +10,19 @@ public:
 	/// </summary>
 	/// <param name="pScene">FBX Scene</param>
 	/// <param name="sNode">Skeleton root node</param>
-	static void toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode);
+	/// <return>Node representing marker Set</return>
+	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode);
+
+	/// <summary>
+	/// Creates hierarchical Skeleton from absolute markers
+	/// </summary>
+	/// <param name="pScene">FBX Scene</param>
+	/// <param name="sNode">Skeleton used as a reference to build the hierarchy</param>
+	/// <param name="markerSet">Markers to be used</param>
+	/// <param name="newSkelName">Name of new skeleton to be created</param>
+	/// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
+	/// <return>Pointer to our newly created skeleton</return>
+	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, std::vector<FbxTime> &keyVec);
 
 private:
 	// Constant declaration
@@ -77,18 +89,6 @@ private:
 	/// <param name="T">Transformation Matrix</param>
 	/// <param name="forceMode">Boolean value that defines whether we force the creation of animation curves, in case they do not exist (defaults to true).</param>
 	static void applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix &T, bool forceMode = true);
-
-
-	/// <summary>
-	/// Creates hierarchical Skeleton from absolute markers
-	/// </summary>
-	/// <param name="pScene">FBX Scene</param>
-	/// <param name="sNode">Skeleton used as a reference to build the hierarchy</param>
-	/// <param name="markerSet">Markers to be used</param>
-	/// <param name="newSkelName">Name of new skeleton to be created</param>
-	/// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
-	/// <return>Pointer to our newly created skeleton</return>
-	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, std::vector<FbxTime> &keyVec);
 
 
 	/// <summary>
