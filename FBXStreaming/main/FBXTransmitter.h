@@ -99,4 +99,9 @@ private:
 	/// </summary>
 	/// <return>On success, returns socket identifier. On error, it returns an INVALID_SOCKET</return>
 	SOCKET createDefaultListeningSocket();
+
+	/// <summary>
+	/// Simulates packet loss
+	/// </summary>
+	void dropKeys(FbxScene *lScene, FbxNode *mSet);
 };

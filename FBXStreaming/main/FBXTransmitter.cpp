@@ -67,6 +67,10 @@ void FBXTransmitter::initSockets() {
 /// <param name="inputFileName">MoCap file to be sent over the network</param>
 void FBXTransmitter::transmit(char *inputFileName) {
 
+
+	/* initialize random seed: */
+	srand(1000);
+
 	// Check if server mode is enabled, if so, do not transmit
 	if (p_serverMode) {
 		UI_Printf("WARNING: Server mode has been enabled, client mode is disabled.");
@@ -107,8 +111,32 @@ void FBXTransmitter::transmit(char *inputFileName) {
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FBXJointConverter::toAbsoluteMarkers(lScene, pNode);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode);
+
+		// Apply unroll filter to ir
+		FbxAnimCurveFilterUnroll postProcFilter;
+		applyUnrollFilterHierarchically(postProcFilter, markerSet);
+
+		FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+		FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+
+		FbxAnimCurve *rootCurveX = pNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+
+		std::vector<FbxTime> keyTimeVec;
+		FBXJointConverter::extractKeyTimesFromCurve(rootCurveX, keyTimeVec);
+
+		UI_Printf("Ready to drop keys for %s", markerSet->GetName());
+
+
+
+		// Back to skeleton
+		FbxNode *skel2 = FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip02", keyTimeVec);
+
+
+		dropKeys(lScene, skel2);
+
 	}
+
 
 	// Save Scene
 	int lFileFormat = p_sdkManager->GetIOPluginRegistry()->FindReaderIDByDescription(c_FBXBinaryFileDesc);
@@ -215,3 +243,117 @@ SOCKET FBXTransmitter::createDefaultListeningSocket() {
 
 	return s;
 };
+
+void FBXTransmitter::dropKeys(FbxScene *lScene, FbxNode *curNode) {
+
+	// Lose 60 percent
+	int lossRate = 9;
+
+
+	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+
+
+	// Obtain translation curves
+	FbxAnimCurve *transXCurve = curNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	FbxAnimCurve *transYCurve = curNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+	FbxAnimCurve *transZCurve = curNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+	int translationKeyCount = 0;
+	// Ignore curves that have no or a single key
+	if (transXCurve && transXCurve->KeyGetCount() > 1) {
+		translationKeyCount = transXCurve->KeyGetCount();
+	}
+
+	// Iterate on translation keys
+	for (int j = 1; j < translationKeyCount; j++) {
+		int random = rand() % 10;
+		// Drop packet
+	//	UI_Printf("Number %d", random);
+		if (random < lossRate) {
+	//		UI_Printf("Dropping translation key at index %d for marker %d", j, i);
+
+			if (transXCurve) {
+				transXCurve->KeyModifyBegin();
+				//Let's drop key from x curve
+				transXCurve->KeyRemove(j);
+				transXCurve->KeyModifyEnd();
+			}
+
+			if (transYCurve) {
+				transYCurve->KeyModifyBegin();
+				//Let's drop key from y curve
+				transYCurve->KeyRemove(j);
+				transYCurve->KeyModifyEnd();
+			}
+
+			if (transZCurve) {
+				transZCurve->KeyModifyBegin();
+				//Let's drop key from z curve
+				transZCurve->KeyRemove(j);
+				transZCurve->KeyModifyEnd();
+			}
+		}
+	}
+
+
+	// Obtain rotation curves
+	FbxAnimCurve *rotXCurve = curNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	FbxAnimCurve *rotYCurve = curNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+	FbxAnimCurve *rotZCurve = curNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+	// Obtain number of keys
+	int rotationKeyCount = 0;
+	if (rotXCurve) {
+		rotationKeyCount = rotXCurve->KeyGetCount();
+	}
+
+	// Iterate on rotation keys
+	for (int j = 1; j < rotationKeyCount; j++) {
+		int random = rand() % 10;
+		// Drop packet
+	//	UI_Printf("Number %d", random);
+		if (random < lossRate) {
+//			UI_Printf("Dropping rotation key at index %d for marker %d", j, i);
+
+
+			if (rotXCurve) {
+				rotXCurve->KeyModifyBegin();
+				//Let's drop key from x curve
+				rotXCurve->KeyRemove(j);
+				rotXCurve->KeyModifyEnd();
+			}
+
+			if (transYCurve) {
+				rotYCurve->KeyModifyBegin();
+				//Let's drop key from y curve
+				rotYCurve->KeyRemove(j);
+				rotYCurve->KeyModifyEnd();
+			}
+
+			if (rotZCurve) {
+				rotZCurve->KeyModifyBegin();
+				//Let's drop key from z curve
+				rotZCurve->KeyRemove(j);
+				rotZCurve->KeyModifyEnd();
+			}
+		}
+	}
+
+
+
+	// Get number of markers
+	int childCount = curNode->GetChildCount();
+
+	// Iterate on markers
+	for (int i = 0; i < childCount; i++) {
+
+		// Current marker
+		FbxNode *childI = curNode->GetChild(i);
+
+		// Repeat for child
+		dropKeys(lScene, childI);
+	}
+
+
+}

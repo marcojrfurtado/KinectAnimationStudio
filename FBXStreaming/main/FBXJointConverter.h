@@ -22,7 +22,14 @@ public:
 	/// <param name="newSkelName">Name of new skeleton to be created</param>
 	/// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 	/// <return>Pointer to our newly created skeleton</return>
-	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, std::vector<FbxTime> &keyVec);
+	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, std::vector<FbxTime> &keyVec = c_emptyVector);
+
+	/// <summary>
+	/// Extract key times from curve, and add them to provided vector
+	/// </summary>
+	/// <param name="srcCurve">Curve where key information is located</param>
+	/// <param name="out_time">Vector where information will be written to</param>
+	static void extractKeyTimesFromCurve(FbxAnimCurve *srcCurve, std::vector<FbxTime> &out_time);
 
 private:
 	// Constant declaration
@@ -30,6 +37,7 @@ private:
 	static char *c_setPrefix;
 	static char *c_markerPrefix;
 	static char *c_separator;
+	static std::vector<FbxTime> c_emptyVector;
 
 	// Method defintions
 
@@ -63,12 +71,7 @@ private:
 	static void createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode);
 
 
-	/// <summary>
-	/// Extract key times from curve, and add them to provided vector
-	/// </summary>
-	/// <param name="srcCurve">Curve where key information is located</param>
-	/// <param name="out_time">Vector where information will be written to</param>
-	static void extractKeyTimesFromCurve(FbxAnimCurve *srcCurve, std::vector<FbxTime> &out_time);
+
 
 
 	/// <summary>

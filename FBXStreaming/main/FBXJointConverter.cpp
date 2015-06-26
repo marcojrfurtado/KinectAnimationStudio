@@ -54,13 +54,11 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode) 
 		UI_Printf("Markers were animated.");
 
 		// Turn markers into another skeleton ( TESTING )
-		FbxNode *bip2skel = fromAbsoluteMarkers(pScene, sNode, "Bip02", keyTimeVec);
+		//FbxNode *bip2skel = fromAbsoluteMarkers(pScene, sNode, "Bip02", keyTimeVec);
 
 		UI_Printf("Skeleton has been created.");
 
-		// Apply unroll filter to ir
-	//	FbxAnimCurveFilterUnroll postProcFilter;
-	//	applyUnrollFilterHierarchically(postProcFilter, bip2skel);
+
 
 		UI_Printf("Post processing has been finished.");
 
@@ -83,6 +81,19 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode) 
 /// <return>Pointer to our newly created skeleton</return>
 FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode , char *newSkelName, std::vector<FbxTime> &keyVec)  {
 
+	// If not initialized
+	if (keyVec.size() == 0) {
+
+		// Get Animation Layer
+		FbxAnimStack *pStack = pScene->GetCurrentAnimationStack();
+		FbxAnimLayer *pLayer = pStack->GetMember<FbxAnimLayer>();
+
+
+		// Collect keyframe times
+		FbxAnimCurve *rootTranslationCurveX = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		extractKeyTimesFromCurve(rootTranslationCurveX, keyVec);
+	}
+
 	/// Create a new skeleton
 	FbxSkeleton *newSkelAttribute = FbxSkeleton::Create(pScene, newSkelName);
 	FbxNode *newSkelNode = FbxNode::Create(pScene, newSkelName);
@@ -93,6 +104,8 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 
 	// Copy hierarchy
 	copySkeleton(pScene, refNode, newSkelNode);
+
+
 
 
 	// Find markers
@@ -109,6 +122,11 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 			animateJointsFromMarkers(pLayer, it, markerSet, newSkelNode);
 		}
 	}
+
+
+	// Reset name after animating
+	newSkelAttribute->SetName(newSkelName);
+	newSkelNode->SetName(newSkelName);
 
 	return newSkelNode;
 }
