@@ -68,9 +68,66 @@ void FBXTransmitter::initSockets() {
 void FBXTransmitter::transmit(char *inputFileName) {
 
 
-	/* initialize random seed: */
-	srand(1000);
+	// UDP Client
+	struct sockaddr_in si_other;
+	int slen = sizeof(si_other);
+	SOCKET s;
+	char buf[512];
+	//char message[512];
 
+	//create socket
+	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR)
+	{
+		printf("socket() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
+	}
+
+
+	//setup address structure
+	memset((char *)&si_other, 0, sizeof(si_other));
+	int result;
+	char name[20];
+	result = InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
+	InetNtop(AF_INET, &si_other.sin_addr, name, 20);
+	si_other.sin_family = AF_INET;
+	si_other.sin_port = htons((u_short) p_transmitterPort);
+	//si_other.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+	//si_other.sin_addr.S_un.S_addr = *((unsigned long*)host)
+
+	//InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
+
+	//start communication
+	while (1)
+	{
+		printf("Sending file: %s", inputFileName);
+		//gets_s(message);
+
+		//send the message
+		if (sendto(s, inputFileName, strlen(inputFileName), 0, (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
+		{
+			UI_Printf("failed to send with error code : %d", WSAGetLastError());
+			//exit(EXIT_FAILURE);
+		}
+
+		//receive a reply and print it
+		//clear the buffer by filling null, it might have previously received data
+		memset(buf, '\0', 512);
+		//try to receive some data, this is a blocking call
+		if (recvfrom(s, buf, 512, 0, (struct sockaddr *) &si_other, &slen) == SOCKET_ERROR)
+		{
+			printf("recvfrom() failed with error code : %d", WSAGetLastError());
+			//exit(EXIT_FAILURE);
+		}
+
+		UI_Printf("%s\n", buf);
+	}
+	closesocket(s);
+
+
+	
+	/* initialize random seed: */
+	//srand(1000);
+	/*
 	// Check if server mode is enabled, if so, do not transmit
 	if (p_serverMode) {
 		UI_Printf("WARNING: Server mode has been enabled, client mode is disabled.");
@@ -147,6 +204,7 @@ void FBXTransmitter::transmit(char *inputFileName) {
 	}
 
 	lScene->Destroy();
+	*/
 }
 
 /// <summary>
@@ -160,7 +218,7 @@ void FBXTransmitter::startServer() {
 	// enable flag
 	p_serverMode = true;
 
-	SOCKET ListenSocket = createDefaultListeningSocket();
+	/*SOCKET ListenSocket = createDefaultListeningSocket();
 	if (ListenSocket == INVALID_SOCKET) {
 		p_serverMode = false;
 		return;
@@ -177,10 +235,71 @@ void FBXTransmitter::startServer() {
 		closesocket(ListenSocket);
 		WSACleanup();
 		return ;
+	}*/
+
+
+	// UDP Server
+	SOCKET s;
+	struct sockaddr_in server, si_other;
+	int slen, recv_len;
+	char buf[512];
+
+	slen = sizeof(si_other);
+
+	//Create a socket
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
+	{
+		UI_Printf("Could not create socket : %d", WSAGetLastError());
+	}
+	UI_Printf("Socket created.\n");
+
+	//Prepare the sockaddr_in structure
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_port = htons(p_transmitterPort);
+
+	//Bind
+	if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
+	{
+		UI_Printf("Bind failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
+	}
+	UI_Printf("Bind done\n");
+
+	//keep listening for data
+	while (1)
+	{
+		UI_Printf("Waiting for file...");
+		fflush(stdout);
+
+		//clear the buffer by filling null, it might have previously received data
+		memset(buf, '\0', 512);
+
+		//try to receive some data, this is a blocking call
+		if ((recv_len = recvfrom(s, buf, 512, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
+		{
+			UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
+			exit(EXIT_FAILURE);
+		}
+
+		//print details of the client/peer and the data received
+		//UI_Printf("Received packet from %s:%d\n", inet_ntop(AF_INET, si_other.sin_addr), ntohs(si_other.sin_port));
+		UI_Printf("Data: %s\n", buf);
+
+		//now reply the client with the same data
+		if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
+		{
+			UI_Printf("sendto() failed with error code : %d", WSAGetLastError());
+			exit(EXIT_FAILURE);
+		}
 	}
 
+	closesocket(s);
 
+	
 }
+
+
 
 /// <summary>
 /// Creates a listening socket.
@@ -197,7 +316,6 @@ SOCKET FBXTransmitter::createDefaultListeningSocket() {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
-
 
 	char portStr[10];
 	sprintf_s(portStr, "%d", p_transmitterPort);

@@ -5,7 +5,7 @@
   
   <!-- User Macros -->
   <PropertyGroup Label="UserMacros">
-    <FBX_ROOT Condition="'$(Platform)'=='x64'">$(programW6432)\Autodesk\FBX\FBX SDK\2015.1</FBX_ROOT>
+    <FBX_ROOT Condition="'$(Platform)'=='x64'">$(programW6432)\Autodesk\FBX\FBX SDK\2016.0</FBX_ROOT>
   </PropertyGroup>
 
   <!-- Debug|x64 -->
@@ -17,7 +17,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir);$(FBX_ROOT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(FBX_ROOT)\lib\vs2013\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(FBX_ROOT)\lib\vs2012\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
 	<Lib>
