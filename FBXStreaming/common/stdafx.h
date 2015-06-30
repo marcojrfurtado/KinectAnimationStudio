@@ -41,6 +41,7 @@
 
 // c++ std libraries
 #include <atomic>
+#include <map>
 
 // WIN Libraries
 #include <winsock2.h>

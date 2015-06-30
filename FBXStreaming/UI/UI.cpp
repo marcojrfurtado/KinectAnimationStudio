@@ -211,7 +211,7 @@ LRESULT CALLBACK WndProc(
 			break;
 
 		case EXPORT_TO_BUTTON:
-			GetOutputFileName(hWnd, gszOutputFile);
+			GetInputFileName(hWnd, gszOutputFile);
 			break;
 
 		case START_SERVER_BUTTON:

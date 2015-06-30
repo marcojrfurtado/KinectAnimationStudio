@@ -32,18 +32,19 @@ public:
 	static void extractKeyTimesFromCurve(FbxAnimCurve *srcCurve, std::vector<FbxTime> &out_time);
 
 	/// <summary>
-	/// Checks if joint is animatable
+	/// Find set of markers corresponding to a reference skeleton
 	/// </summary>
-	/// <param name="tgtNode">Node to be checked</param>
-	static int getKeyCount(FbxNode *tgtNode, FbxScene *lScene) {
-		FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
-		FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
-		FbxAnimCurve *rotCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	/// <param name="pScene">FBX Scene</param>
+	/// <param name="refNode">Reference skeleton</param>
+	/// <param name="tgtSkel">Skeleton root to receive hierarchy</param>
+	static FbxNode* findMarkerSet(FbxScene *pScene, FbxNode *refNode);
 
-		int keyTotal = rotCurve->KeyGetCount();
+	/// <summary>
+	/// Find first set of markers in a scene
+	/// </summary>
+	/// <param name="pScene">FBX Scene</param>
+	static FbxNode* findAnyMarkerSet(FbxScene *pScene);
 
-		return keyTotal;
-	}
 
 private:
 	// Constant declaration
@@ -82,7 +83,9 @@ private:
 	/// <param name="pScene">FBX Scene</param>
 	/// <param name="markerSet">Set to have markers added to, if NULL, markers are added to scene</param>
 	/// <param name="cNode">Current joint node in the hierarchy</param>
-	static void createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode);
+	/// <param name="idGen">Used to assign ids to markers</param>
+	/// <return>Next id to be used when marker is added</return>
+	static int createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode, int idGen = 0);
 
 
 
@@ -117,14 +120,6 @@ private:
 	static void copySkeleton(FbxScene *pScene, FbxNode *oriSkel, FbxNode *tgtSkel);
 
 	/// <summary>
-	/// Find set of markers corresponding to a reference skeleton
-	/// </summary>
-	/// <param name="pScene">FBX Scene</param>
-	/// <param name="refNode">Reference skeleton</param>
-	/// <param name="tgtSkel">Skeleton root to receive hierarchy</param>
-	static FbxNode* findMarkerSet(FbxScene *pScene, FbxNode *refNode);
-
-	/// <summary>
 	/// Find marker inside marker set
 	/// </summary>
 	/// <param name="mSet">Markert Set node</param>
@@ -146,16 +141,6 @@ private:
 	/// <param name="kVal">Key value</param>
 	/// <param name="interpolationType">Interpolation to be used by key ( defaults to linear)</param>
 	static void applyTransformationVectorToCurve(FbxAnimCurve *tgtCurve, FbxTime kTime, float kVal, FbxAnimCurveDef::EInterpolationType interpolationType = FbxAnimCurveDef::eInterpolationLinear);
-
-	/// <summary>
-	/// Checks if joint is animatable
-	/// </summary>
-	/// <param name="tgtNode">Node to be checked</param>
-	static bool isAnimatable(FbxNode *tgtNode) {
-		const char *name = tgtNode->GetName();
-		FbxAnimCurveNode *rot = tgtNode->LclRotation.GetCurveNode(), *trans = tgtNode->LclTranslation.GetCurveNode();
-		return (  (rot != NULL) || (trans != NULL)  );
-	}
 
 	/// <summary>
 	/// Copy curve information from one node to another. Keys are not copied, only curves are initialized.

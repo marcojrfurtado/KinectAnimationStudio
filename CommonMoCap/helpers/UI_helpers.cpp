@@ -68,7 +68,7 @@ void UI_Printf(
 
 // show the <Open file> dialog
 void GetInputFileName(
-	HWND hWndParent, char *gszInputFile
+	HWND hWndParent, char *tgtFile
 	)
 {
 	OPENFILENAME ofn;
@@ -107,12 +107,12 @@ void GetInputFileName(
 	SetWindowText(GetDlgItem(hWndParent, IMPORT_FROM_EDITBOX), szFile);
 
 	// Keep a copy of the file name
-	FBXSDK_strcpy(gszInputFile, _MAX_PATH, szFile);
+	FBXSDK_strcpy(tgtFile, _MAX_PATH, szFile);
 }
 
 // show the <Save file> dialog
 void GetOutputFileName(
-	HWND hWndParent, char *gszOutputFile
+	HWND hWndParent, char *tgtFile
 	)
 {
 	int  gWriteFileFormat = -1;             // Write file format
@@ -169,7 +169,7 @@ void GetOutputFileName(
 	SetWindowText(GetDlgItem(hWndParent, DECOMPRESS_TO_EDITBOX), szFile);
 
 	// Keep a copy of the file name
-	FBXSDK_strcpy(gszOutputFile, _MAX_PATH, szFile);
+	FBXSDK_strcpy(tgtFile, _MAX_PATH, szFile);
 }
 
 // check if in the filepath the file extention exist

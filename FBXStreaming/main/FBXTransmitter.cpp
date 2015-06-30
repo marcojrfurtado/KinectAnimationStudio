@@ -8,12 +8,20 @@
 /// <param name="fManager">Pointer to FBX SDK Manager</param>
 /// <param name="tPort">Transmitter port, which server binds to, and client connects to</param>
 /// <param name="cHostName">Nameof the host for which client will be connected to</param>
-FBXTransmitter::FBXTransmitter(FbxManager *fManager, int tPort, char *cHostName) : p_sdkManager(fManager),
+/// <param name="exportFileName">File where server writes information</param>
+FBXTransmitter::FBXTransmitter(FbxManager *fManager, int tPort, char *cHostName, char *exportFileName) : p_sdkManager(fManager),
 p_transmitterPort(tPort),
-p_clientHostName(cHostName){
+p_clientHostName(cHostName)
+{
+	// Initialize export file name
+	p_exportFileName = _strdup(exportFileName);
 
-	// Init sockets
+	// Initialise winsock
 	initSockets();
+
+	// Initialize address structure
+	updateSocketAddr();
+
 
 }
 
@@ -58,15 +66,7 @@ void FBXTransmitter::initSockets() {
 void FBXTransmitter::transmit(char *inputFileName) {
 
 
-	// UDP Client
-	struct sockaddr_in si_other;
-	int s, slen = sizeof(si_other);
-	//SOCKET s;
-	char buf[PACKET_SIZE];
-	//char message[BUFLEN];
-
-	// Initialise winsock
-	initSockets();
+	SOCKET s;
 
 	//create socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR)
@@ -79,14 +79,10 @@ void FBXTransmitter::transmit(char *inputFileName) {
 	//start communication
 
 	printf("Sending file: %s", inputFileName);
-	
-	closesocket(s);
 
-
-	
 	/* initialize random seed: */
 	//srand(1000);
-	/*
+	
 	// Check if server mode is enabled, if so, do not transmit
 	if (p_serverMode) {
 		UI_Printf("WARNING: Server mode has been enabled, client mode is disabled.");
@@ -133,27 +129,29 @@ void FBXTransmitter::transmit(char *inputFileName) {
 		FbxAnimCurveFilterUnroll postProcFilter;
 		applyUnrollFilterHierarchically(postProcFilter, markerSet);
 
-		FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
-		FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+		encodePacket(lScene, markerSet, s);
+		// Save Scene
+	//	int lFileFormat = p_sdkManager->GetIOPluginRegistry()->FindReaderIDByDescription(c_FBXBinaryFileDesc);
+	//	SaveScene(p_sdkManager, lScene, "output.fbx", lFileFormat, false);
 
-		FbxAnimCurve *rootCurveX = pNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+		//FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+		//FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
 
-		std::vector<FbxTime> keyTimeVec;
-		FBXJointConverter::extractKeyTimesFromCurve(rootCurveX, keyTimeVec);
+		//FbxAnimCurve *rootCurveX = pNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 
-		UI_Printf("Ready to drop keys for %s", markerSet->GetName());
-
+		//std::vector<FbxTime> keyTimeVec;
+		//FBXJointConverter::extractKeyTimesFromCurve(rootCurveX, keyTimeVec);
 
 
 		// Back to skeleton
-		FbxNode *skel2 = FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip02", keyTimeVec);
+		//FbxNode *skel2 = FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip02", keyTimeVec);
 
 
-		dropKeys(lScene, skel2);
+		//dropKeys(lScene, skel2);
 
 	}
 
-
+	/*
 	// Save Scene
 	int lFileFormat = p_sdkManager->GetIOPluginRegistry()->FindReaderIDByDescription(c_FBXBinaryFileDesc);
 	
@@ -161,9 +159,12 @@ void FBXTransmitter::transmit(char *inputFileName) {
 	if (!r) {
 		UI_Printf(" Problem when trying to save scene.");
 	}
-
-	lScene->Destroy();
 	*/
+	lScene->Destroy();
+
+	// Close socket after transmitting
+	closesocket(s);
+	
 }
 
 /// <summary>
@@ -176,6 +177,33 @@ void FBXTransmitter::startServer() {
 	
 	// enable flag
 	p_serverMode = true;
+
+
+	// Try loading export file
+	FbxScene* lScene = FbxScene::Create(p_sdkManager, "");
+	// Load File
+	bool r = LoadScene(p_sdkManager, lScene, p_exportFileName);
+
+	// Check if load was succesful
+	if (!r) {
+		UI_Printf("	Problem found when trying to load the scene. Make sure %s is a valid FBX file", p_exportFileName);
+		lScene->Destroy();
+		p_serverMode = false;
+		return;
+	}
+	
+	//Find marker set in the scene
+	FbxNode *set = FBXJointConverter::findAnyMarkerSet(lScene);
+
+	if (set == NULL) {
+		UI_Printf(" Unable to find marker set in the export file.");
+		lScene->Destroy();
+		p_serverMode = false;
+		return;
+	}
+
+	std::map<FbxUInt64, FbxNode *> decodeMap;
+	initializeJointIdMap(set, decodeMap);
 
 	/*SOCKET ListenSocket = createDefaultListeningSocket();
 	if (ListenSocket == INVALID_SOCKET) {
@@ -200,13 +228,10 @@ void FBXTransmitter::startServer() {
 	// UDP Server
 	SOCKET s;
 	struct sockaddr_in server, si_other;
-	int slen, recv_len;
-	char buf[PACKET_SIZE];
+	int slen, recv_byte_len;
+	PACKET buf[PACKET_SIZE];
 
 	slen = sizeof(si_other);
-
-	//Initialise  winsock
-	initSockets();
 
 	//Create a socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
@@ -236,22 +261,21 @@ void FBXTransmitter::startServer() {
 	memset(buf, '\0', PACKET_SIZE);
 
 	//try to receive some data, this is a blocking call
-	if ((recv_len = recvfrom(s, buf, PACKET_SIZE, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
+	if ((recv_byte_len = recvfrom(s, (char *) buf, PACKET_SIZE, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
 	{
 		UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
 
-	//print details of the client/peer and the data received
-	//UI_Printf("Received packet from %s:%d\n", inet_ntop(AF_INET, si_other.sin_addr), ntohs(si_other.sin_port));
-	UI_Printf("Data: %s\n", buf);
+	// Calculate number of keyframes within packet
+	int num_key_received = recv_byte_len / sizeof(PACKET);
 
-	//now reply the client with the same data
-	if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
-	{
-		UI_Printf("sendto() failed with error code : %d", WSAGetLastError());
-		exit(EXIT_FAILURE);
-	}
+	// Decode incoming packet
+	decodePacket(lScene, decodeMap, buf, num_key_received);
+
+
+
+
 
 	closesocket(s);
 
@@ -445,7 +469,7 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
 
-	int keyTotal = FBXJointConverter::getKeyCount(markerSet->GetChild(0), lScene);
+	int keyTotal = getKeyCount(markerSet->GetChild(0), lScene);
 
 	int childCount = markerSet->GetChildCount();
 
@@ -455,27 +479,29 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 			FbxAnimCurve *rotXCurve = markerSet->GetChild(ci)->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 			FbxAnimCurve *rotYCurve = markerSet->GetChild(ci)->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 			FbxAnimCurve *rotZCurve = markerSet->GetChild(ci)->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
-					p[pIndex].joint_id = markerSet->GetUniqueID();
-					if (rotXCurve) {
-						p[pIndex].x = rotXCurve->KeyGet(keyI).GetValue();
-					}
-					if (rotYCurve) {
-						p[pIndex].y = rotYCurve->KeyGet(keyI).GetValue();
-					}
-					if (rotZCurve) {
-						p[pIndex].z = rotZCurve->KeyGet(keyI).GetValue();
-						p[pIndex].time = rotZCurve->KeyGet(keyI).GetTime().GetMilliSeconds();
-					}
-					pIndex++;
+			p[pIndex].joint_id = getCustomIdProperty(markerSet->GetChild(ci));
+			if (rotXCurve) {
+				p[pIndex].x = rotXCurve->KeyGet(keyI).GetValue();
+			}
+			if (rotYCurve) {
+				p[pIndex].y = rotYCurve->KeyGet(keyI).GetValue();
+			}
+			if (rotZCurve) {
+				p[pIndex].z = rotZCurve->KeyGet(keyI).GetValue();
+				p[pIndex].time = rotZCurve->KeyGet(keyI).GetTime().GetMilliSeconds();
+			}
+			pIndex++;
 					
-					if (pIndex >= Max_key_num) {
-						if (sendto(s, (const char *)p, PACKET_SIZE, 0, (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
-						{
-							UI_Printf("failed to send with error code : %d", WSAGetLastError());
-							//exit(EXIT_FAILURE);
-						}
-						memset();
-					}
+			// Send data and clear the buffer
+			if (pIndex >= Max_key_num) {
+				if (sendto(s, (const char *)p, PACKET_SIZE, 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+				{
+					UI_Printf("failed to send with error code : %d", WSAGetLastError());
+					//exit(EXIT_FAILURE);
+				}
+				memset(p,NULL,Max_key_num);
+				pIndex = 0;
+			}
 		}
 		keyI++;
 	}
@@ -485,7 +511,7 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 	delete p;
 }
 
-void FBXTransmitter::updateSocetAddr() {
+void FBXTransmitter::updateSocketAddr() {
 	//setup address structure
 	memset((char *)&si_other, 0, sizeof(si_other));
 	//int result;
@@ -496,4 +522,86 @@ void FBXTransmitter::updateSocetAddr() {
 	si_other.sin_port = htons(p_transmitterPort);
 	//si_other.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
+}
+
+
+/// <summary>
+/// Decode keyframes from a certain packet
+/// </summary>
+void FBXTransmitter::decodePacket(FbxScene *lScene, std::map<FbxUInt64,FbxNode *> jointMap, PACKET *p, int keyframeNum) {
+
+
+	// Retrieve animationlayer
+	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+	
+
+
+	// Iterate on incoming packets
+	for (int i = 0; i < keyframeNum; i++) {
+
+		auto it = jointMap.find(p[i].joint_id);
+		if (it == jointMap.end()){
+			UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", p[i].joint_id);
+			continue;
+		}
+
+		FbxNode *tgtMarker = it->second;
+
+		FbxAnimCurve *rotCurveX = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+		FbxAnimCurve *rotCurveY = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+		FbxAnimCurve *rotCurveZ = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+		if (rotCurveX) {
+			rotCurveX->KeyModifyBegin();
+
+			// Start adding key
+			// TODO: Speed up this operation using index
+			int keyIndex = rotCurveX->KeyAdd(p[i].time);
+			rotCurveX->KeySetValue(keyIndex, p[i].x);
+
+			rotCurveX->KeyModifyEnd();
+		}
+
+		if (rotCurveY) {
+			rotCurveY->KeyModifyBegin();
+
+			// Start adding key
+			// TODO: Speed up this operation using index
+			int keyIndex = rotCurveY->KeyAdd(p[i].time);
+			rotCurveY->KeySetValue(keyIndex, p[i].y);
+
+			rotCurveY->KeyModifyEnd();
+		}
+
+		if (rotCurveZ) {
+			rotCurveZ->KeyModifyBegin();
+
+			// Start adding key
+			// TODO: Speed up this operation using index
+			int keyIndex = rotCurveZ->KeyAdd(p[i].time);
+			rotCurveZ->KeySetValue(keyIndex, p[i].z);
+
+			rotCurveZ->KeyModifyEnd();
+		}
+
+
+	}
+
+
+}
+
+
+/// <summary>
+/// Creates a map the relates node pointsers and their IDs
+/// </summary>
+void FBXTransmitter::initializeJointIdMap(FbxNode *parentNode, std::map<FbxUInt64, FbxNode *> &idMap) {
+
+	int childCount = parentNode->GetChildCount();
+
+	for (int i = 0; i < childCount; i++) {
+		FbxNode* childI = parentNode->GetChild(i);
+		idMap[getCustomIdProperty(childI)] = childI;
+	}
+
 }

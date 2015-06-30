@@ -378,3 +378,57 @@ void applyUnrollFilterHierarchically(FbxAnimCurveFilterUnroll &filter, FbxNode *
 
 
 }
+
+
+/// <summary>
+/// Get number of keys from rotation curve of a given joints
+/// </summary>
+/// <param name="tgtNode">Node to have info extracted</param>
+/// <param name="lScene">FBX Scene</param>
+int getKeyCount(FbxNode *tgtNode, FbxScene *lScene) {
+	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+	FbxAnimCurve *rotCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+
+	int keyTotal = rotCurve->KeyGetCount();
+
+	return keyTotal;
+}
+
+/// <summary>
+/// Checks if joint is animatable
+/// </summary>
+/// <param name="tgtNode">Node to be checked</param>
+bool isAnimatable(FbxNode *tgtNode) {
+	const char *name = tgtNode->GetName();
+	FbxAnimCurveNode *rot = tgtNode->LclRotation.GetCurveNode(), *trans = tgtNode->LclTranslation.GetCurveNode();
+	return ((rot != NULL) || (trans != NULL));
+}
+
+
+/// <summary>
+/// Sets custom ID for a FBX NODE
+/// </summary>
+void setCustomIdProperty(FbxNode *fNode, int newId) {
+	FbxProperty lProperty = fNode->FindProperty(FBX_CUSTOM_ID_PROPERTY_LABEL);
+
+	if (!lProperty.IsValid()) {
+		lProperty = FbxProperty::Create(fNode, fbxsdk_2015_1::FbxIntDT, FBX_CUSTOM_ID_PROPERTY_LABEL, FBX_CUSTOM_ID_PROPERTY_LABEL);
+	}
+	lProperty.Set(newId);
+
+}
+
+/// <summary>
+/// Gets custom ID from a FBX NODE
+/// </summary>
+int getCustomIdProperty(FbxNode *fNode) {
+	int id = -1;
+	
+	FbxProperty lProperty = fNode->FindProperty(FBX_CUSTOM_ID_PROPERTY_LABEL);
+
+	if (lProperty.IsValid()) {
+		id = lProperty.Get<FbxInt>();
+	}
+	return id;
+}

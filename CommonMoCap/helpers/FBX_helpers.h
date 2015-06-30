@@ -2,6 +2,10 @@
 
 #include "..\stdafx.h"
 
+
+// Node property
+#define FBX_CUSTOM_ID_PROPERTY_LABEL "CustomId"
+
 // Global FBX manager ( extern variable )
 extern FbxManager*   gSdkManager;
 
@@ -42,3 +46,28 @@ bool SaveScene(
 /// <param name="filter">FBX  Unroll filter instance</param>
 /// <param name="fNode">Current FBX  node</param>
 void applyUnrollFilterHierarchically(FbxAnimCurveFilterUnroll &filter, FbxNode *fNode);
+
+
+/// <summary>
+/// Get number of keys from rotation curve of a given joints
+/// </summary>
+/// <param name="tgtNode">Node to have info extracted</param>
+/// <param name="lScene">FBX Scene</param>
+int getKeyCount(FbxNode *tgtNode, FbxScene *lScene);
+
+/// <summary>
+/// Checks if joint is animatable
+/// </summary>
+/// <param name="tgtNode">Node to be checked</param>
+bool isAnimatable(FbxNode *tgtNode);
+
+
+/// <summary>
+/// Gets custom ID from a FBX NODE
+/// </summary>
+int getCustomIdProperty(FbxNode *fNode);
+
+/// <summary>
+/// Sets custom ID for a FBX NODE
+/// </summary>
+void setCustomIdProperty(FbxNode *fNode, int newId);

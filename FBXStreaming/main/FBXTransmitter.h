@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/stdafx.h"
+#include "keyFramePackets.h"
 
 /*
   Class used to load FBX files for transmission over network
@@ -14,7 +15,8 @@ public:
 	/// <param name="fManager">Pointer to FBX SDK Manager</param>
 	/// <param name="tPort">Transmitter port, which server binds to, and client connects to</param>
 	/// <param name="cHostName">Nameof the host for which client will be connected to</param>
-	FBXTransmitter(FbxManager *fManager = NULL, int tPort = 27015, char *cHostName = NULL );
+	/// <param name="exportFileName">File where server writes information</param>
+	FBXTransmitter(FbxManager *fManager = NULL, int tPort = 27015, char *cHostName = NULL , char *exportFileName = "output.fbx");
 
 	/// <summary>
 	/// Destructor
@@ -47,7 +49,10 @@ public:
 	/// Sets transmitter port
 	/// </summary>
 	/// <param name="setPort">Sets port used by transmitter</param>
-	void setPort(int port) { p_transmitterPort = port; };
+	void setPort(int port) {	
+		p_transmitterPort = port; 		
+		updateSocketAddr();
+	};
 
 	/// <summary>
 	/// Get transmitter port
@@ -63,6 +68,7 @@ public:
 		if (p_clientHostName != NULL)
 			free(p_clientHostName);
 		p_clientHostName = _strdup(new_address);
+		updateSocketAddr();
 	};
 
 	/// <summary>
@@ -70,6 +76,16 @@ public:
 	/// </summary>
 	/// <return>host name that we will connect to</return>
 	char* getConnectAddress() { return p_clientHostName; };
+
+
+	/// <summary>
+	/// Sets export file name
+	/// </summary>
+	void setExportName(char *newName) {
+		if (p_exportFileName != NULL)
+			free(p_exportFileName);
+		p_exportFileName = _strdup(newName);
+	}
 
 private:
 	// Constant Definitions
@@ -94,6 +110,10 @@ private:
 	// address to send to
 	struct sockaddr_in si_other;
 
+
+	// File where server will output keyframes
+	char *p_exportFileName;
+
 	// Private methods
 
 	/// <summary>
@@ -107,7 +127,23 @@ private:
 	/// </summary>
 	void dropKeys(FbxScene *lScene, FbxNode *mSet);
 
+	/// <summary>
+	/// Encode keyframes from markers
+	/// </summary>
 	void encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s);
 
-	void updateSocetAddr();
+	/// <summary>
+	/// Decode keyframes from a certain packet
+	/// </summary>
+	void decodePacket(FbxScene *lScene, std::map<FbxUInt64, FbxNode *> jointMap, PACKET *p, int keyframeNum);
+
+	/// <summary>
+	/// Update socket address structure
+	/// </summary>
+	void updateSocketAddr();
+
+	/// <summary>
+	/// Creates a map the relates node pointsers and their IDs
+	/// </summary>
+	void initializeJointIdMap(FbxNode *parentNode, std::map<FbxUInt64, FbxNode *> &idMap);
 };

@@ -138,7 +138,9 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 /// <param name="pScene">FBX Scene</param>
 /// <param name="markerSet">Set to have markers added to, if NULL, markers are added to scene</param>
 /// <param name="cNode">Current joint node in the hierarchy</param>
-void FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode) {
+int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode, int idGen) {
+
+
 
 	const char *name = cNode->GetName();
 
@@ -152,6 +154,9 @@ void FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *marker
 
 
 		markerNode->SetNodeAttribute(cMarkerAttribute);
+
+		setCustomIdProperty(markerNode, idGen);
+		idGen++;
 
 		// Get Animation Layer
 		FbxAnimStack *pStack = pScene->GetCurrentAnimationStack();
@@ -174,7 +179,9 @@ void FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *marker
 	// Repeat for children
 	int childCount = cNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		createMarkersHierarchy(pScene, markerSet, cNode->GetChild(i));
+		idGen = createMarkersHierarchy(pScene, markerSet, cNode->GetChild(i), idGen);
+
+	return idGen;
 
 }
 
@@ -525,4 +532,26 @@ void FBXJointConverter::copyCurveInformation(FbxAnimLayer *pLayer, FbxNode *srcN
 		tgtNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 	if (oriCurveRZ)
 		tgtNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+}
+
+
+/// <summary>
+/// Find first set of markers in a scene
+/// </summary>
+/// <param name="pScene">FBX Scene</param>
+/// <return>Reference to marker set node, if not found, returns NULL</return>
+FbxNode* FBXJointConverter::findAnyMarkerSet(FbxScene *pScene) {
+
+	FbxNode *rootNode = pScene->GetRootNode();
+
+	//	Iterate on children
+	int childCount = rootNode->GetChildCount();
+	for (int i = 0; i < childCount; i++) {
+		FbxNode *childI = rootNode->GetChild(i);
+
+		FbxString childName = childI->GetName();
+		if (strncmp(childName, c_setPrefix,strlen(c_setPrefix)) == 0)
+			return childI;
+	}
+	return NULL;
 }
