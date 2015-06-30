@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common\stdafx.h" />
+    <ClInclude Include="keyFramePackets.h" />
     <ClInclude Include="main\FBXJointConverter.h" />
     <ClInclude Include="main\FBXTransmitter.h" />
     <ClInclude Include="UI\ExtraWindowIDs.h" />

@@ -1,5 +1,6 @@
 #include "FBXTransmitter.h"
 #include "FBXJointConverter.h"
+#include "keyFramePackets.h"
 
 /// <summary>
 /// Constructor
@@ -41,23 +42,12 @@ void FBXTransmitter::initSockets() {
 	// Initialize Winsock
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (iResult != 0) {
+		UI_Printf("failed to initialize winsock.\n");
 		return;
 	}
-
+	UI_Printf("Winsock initialised.\n");
 	// Initialize host name
-	if (p_clientHostName == NULL) {
-		char hName[50];
-		int hResult = gethostname(
-			hName,
-			50
-			);
-		if (hResult == SOCKET_ERROR) {
-			p_clientHostName = _strdup("localhost");
-		}
-		else {
-			p_clientHostName = _strdup(hName);
-		}
-	}
+	p_clientHostName = _strdup("127.0.0.1");
 
 }
 
@@ -70,57 +60,26 @@ void FBXTransmitter::transmit(char *inputFileName) {
 
 	// UDP Client
 	struct sockaddr_in si_other;
-	int slen = sizeof(si_other);
-	SOCKET s;
-	char buf[512];
-	//char message[512];
+	int s, slen = sizeof(si_other);
+	//SOCKET s;
+	char buf[PACKET_SIZE];
+	//char message[BUFLEN];
+
+	// Initialise winsock
+	initSockets();
 
 	//create socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR)
 	{
-		printf("socket() failed with error code : %d", WSAGetLastError());
+		UI_Printf("socket() failed with error code : %d", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
 
 
-	//setup address structure
-	memset((char *)&si_other, 0, sizeof(si_other));
-	int result;
-	char name[20];
-	result = InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
-	InetNtop(AF_INET, &si_other.sin_addr, name, 20);
-	si_other.sin_family = AF_INET;
-	si_other.sin_port = htons((u_short) p_transmitterPort);
-	//si_other.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-	//si_other.sin_addr.S_un.S_addr = *((unsigned long*)host)
-
-	//InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
-
 	//start communication
-	while (1)
-	{
-		printf("Sending file: %s", inputFileName);
-		//gets_s(message);
 
-		//send the message
-		if (sendto(s, inputFileName, strlen(inputFileName), 0, (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
-		{
-			UI_Printf("failed to send with error code : %d", WSAGetLastError());
-			//exit(EXIT_FAILURE);
-		}
-
-		//receive a reply and print it
-		//clear the buffer by filling null, it might have previously received data
-		memset(buf, '\0', 512);
-		//try to receive some data, this is a blocking call
-		if (recvfrom(s, buf, 512, 0, (struct sockaddr *) &si_other, &slen) == SOCKET_ERROR)
-		{
-			printf("recvfrom() failed with error code : %d", WSAGetLastError());
-			//exit(EXIT_FAILURE);
-		}
-
-		UI_Printf("%s\n", buf);
-	}
+	printf("Sending file: %s", inputFileName);
+	
 	closesocket(s);
 
 
@@ -242,9 +201,12 @@ void FBXTransmitter::startServer() {
 	SOCKET s;
 	struct sockaddr_in server, si_other;
 	int slen, recv_len;
-	char buf[512];
+	char buf[PACKET_SIZE];
 
 	slen = sizeof(si_other);
+
+	//Initialise  winsock
+	initSockets();
 
 	//Create a socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
@@ -267,31 +229,28 @@ void FBXTransmitter::startServer() {
 	UI_Printf("Bind done\n");
 
 	//keep listening for data
-	while (1)
+	UI_Printf("Waiting for file...");
+	fflush(stdout);
+
+	//clear the buffer by filling null, it might have previously received data
+	memset(buf, '\0', PACKET_SIZE);
+
+	//try to receive some data, this is a blocking call
+	if ((recv_len = recvfrom(s, buf, PACKET_SIZE, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
 	{
-		UI_Printf("Waiting for file...");
-		fflush(stdout);
+		UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
+	}
 
-		//clear the buffer by filling null, it might have previously received data
-		memset(buf, '\0', 512);
+	//print details of the client/peer and the data received
+	//UI_Printf("Received packet from %s:%d\n", inet_ntop(AF_INET, si_other.sin_addr), ntohs(si_other.sin_port));
+	UI_Printf("Data: %s\n", buf);
 
-		//try to receive some data, this is a blocking call
-		if ((recv_len = recvfrom(s, buf, 512, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
-		{
-			UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
-			exit(EXIT_FAILURE);
-		}
-
-		//print details of the client/peer and the data received
-		//UI_Printf("Received packet from %s:%d\n", inet_ntop(AF_INET, si_other.sin_addr), ntohs(si_other.sin_port));
-		UI_Printf("Data: %s\n", buf);
-
-		//now reply the client with the same data
-		if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
-		{
-			UI_Printf("sendto() failed with error code : %d", WSAGetLastError());
-			exit(EXIT_FAILURE);
-		}
+	//now reply the client with the same data
+	if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
+	{
+		UI_Printf("sendto() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
 	}
 
 	closesocket(s);
@@ -474,4 +433,67 @@ void FBXTransmitter::dropKeys(FbxScene *lScene, FbxNode *curNode) {
 	}
 
 
+}
+
+
+void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
+	int Max_key_num = PACKET_SIZE / sizeof(PACKET);
+	PACKET *p = new PACKET[Max_key_num];
+	int pIndex = 0;
+	int keyI = 0;
+
+	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+
+	int keyTotal = FBXJointConverter::getKeyCount(markerSet->GetChild(0), lScene);
+
+	int childCount = markerSet->GetChildCount();
+
+	while (keyI < keyTotal) {
+		for (int ci = 0; ci < childCount; ci++) {
+			// Obtain rotation curves
+			FbxAnimCurve *rotXCurve = markerSet->GetChild(ci)->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+			FbxAnimCurve *rotYCurve = markerSet->GetChild(ci)->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+			FbxAnimCurve *rotZCurve = markerSet->GetChild(ci)->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+					p[pIndex].joint_id = markerSet->GetUniqueID();
+					if (rotXCurve) {
+						p[pIndex].x = rotXCurve->KeyGet(keyI).GetValue();
+					}
+					if (rotYCurve) {
+						p[pIndex].y = rotYCurve->KeyGet(keyI).GetValue();
+					}
+					if (rotZCurve) {
+						p[pIndex].z = rotZCurve->KeyGet(keyI).GetValue();
+						p[pIndex].time = rotZCurve->KeyGet(keyI).GetTime().GetMilliSeconds();
+					}
+					pIndex++;
+					
+					if (pIndex >= Max_key_num) {
+						if (sendto(s, (const char *)p, PACKET_SIZE, 0, (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
+						{
+							UI_Printf("failed to send with error code : %d", WSAGetLastError());
+							//exit(EXIT_FAILURE);
+						}
+						memset();
+					}
+		}
+		keyI++;
+	}
+
+	
+
+	delete p;
+}
+
+void FBXTransmitter::updateSocetAddr() {
+	//setup address structure
+	memset((char *)&si_other, 0, sizeof(si_other));
+	//int result;
+	//char name[20];
+	//result = InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
+	//InetNtop(AF_INET, &si_other.sin_addr, name, 20);
+	si_other.sin_family = AF_INET;
+	si_other.sin_port = htons(p_transmitterPort);
+	//si_other.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+	InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
 }

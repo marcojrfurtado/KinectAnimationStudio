@@ -91,6 +91,8 @@ private:
 	// Nome of client for which host connects to
 	char *p_clientHostName;
 
+	// address to send to
+	struct sockaddr_in si_other;
 
 	// Private methods
 
@@ -104,4 +106,8 @@ private:
 	/// Simulates packet loss
 	/// </summary>
 	void dropKeys(FbxScene *lScene, FbxNode *mSet);
+
+	void encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s);
+
+	void updateSocetAddr();
 };

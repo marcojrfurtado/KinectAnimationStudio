@@ -31,6 +31,20 @@ public:
 	/// <param name="out_time">Vector where information will be written to</param>
 	static void extractKeyTimesFromCurve(FbxAnimCurve *srcCurve, std::vector<FbxTime> &out_time);
 
+	/// <summary>
+	/// Checks if joint is animatable
+	/// </summary>
+	/// <param name="tgtNode">Node to be checked</param>
+	static int getKeyCount(FbxNode *tgtNode, FbxScene *lScene) {
+		FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+		FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+		FbxAnimCurve *rotCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+
+		int keyTotal = rotCurve->KeyGetCount();
+
+		return keyTotal;
+	}
+
 private:
 	// Constant declaration
 	static FbxAMatrix c_mIdentity;
