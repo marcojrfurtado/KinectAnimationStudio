@@ -48,7 +48,7 @@
     <ClInclude Include="main\FBXJointConverter.h">
       <Filter>Header Files\main</Filter>
     </ClInclude>
-    <ClInclude Include="keyFramePackets.h">
+    <ClInclude Include="main\keyFramePackets.h">
       <Filter>Header Files\main</Filter>
     </ClInclude>
   </ItemGroup>
