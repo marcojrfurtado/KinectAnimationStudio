@@ -146,4 +146,5 @@ private:
 	/// Creates a map the relates node pointsers and their IDs
 	/// </summary>
 	void initializeJointIdMap(FbxNode *parentNode, std::map<FbxUInt64, FbxNode *> &idMap);
+
 };

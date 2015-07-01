@@ -413,7 +413,7 @@ void setCustomIdProperty(FbxNode *fNode, int newId) {
 	FbxProperty lProperty = fNode->FindProperty(FBX_CUSTOM_ID_PROPERTY_LABEL);
 
 	if (!lProperty.IsValid()) {
-		lProperty = FbxProperty::Create(fNode, fbxsdk_2015_1::FbxIntDT, FBX_CUSTOM_ID_PROPERTY_LABEL, FBX_CUSTOM_ID_PROPERTY_LABEL);
+		lProperty = FbxProperty::Create(fNode, FbxIntDT, FBX_CUSTOM_ID_PROPERTY_LABEL, FBX_CUSTOM_ID_PROPERTY_LABEL);
 	}
 	lProperty.Set(newId);
 

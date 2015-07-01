@@ -205,6 +205,7 @@ void FBXTransmitter::startServer() {
 	std::map<FbxUInt64, FbxNode *> decodeMap;
 	initializeJointIdMap(set, decodeMap);
 
+
 	/*SOCKET ListenSocket = createDefaultListeningSocket();
 	if (ListenSocket == INVALID_SOCKET) {
 		p_serverMode = false;
@@ -254,27 +255,40 @@ void FBXTransmitter::startServer() {
 	UI_Printf("Bind done\n");
 
 	//keep listening for data
-	UI_Printf("Waiting for file...");
-	fflush(stdout);
 
-	//clear the buffer by filling null, it might have previously received data
-	memset(buf, '\0', PACKET_SIZE);
+	while (true) {
 
-	//try to receive some data, this is a blocking call
-	if ((recv_byte_len = recvfrom(s, (char *) buf, PACKET_SIZE, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
-	{
-		UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
-		exit(EXIT_FAILURE);
+		UI_Printf("Waiting for file...");
+		fflush(stdout);
+
+		//clear the buffer by filling null, it might have previously received data
+		memset(buf, '\0', PACKET_SIZE);
+
+		//try to receive some data, this is a blocking call
+		if ((recv_byte_len = recvfrom(s, (char *)buf, PACKET_SIZE, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
+		{
+			UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
+			exit(EXIT_FAILURE);
+		}
+
+		UI_Printf("bytes recieved, %d", recv_byte_len);
+		// Calculate number of keyframes within packet
+		int num_key_received = recv_byte_len / sizeof(PACKET);
+
+
+		// Decode incoming packet
+		decodePacket(lScene, decodeMap, buf, num_key_received);
 	}
 
-	// Calculate number of keyframes within packet
-	int num_key_received = recv_byte_len / sizeof(PACKET);
+	// Save Scene
+	int lFileFormat = p_sdkManager->GetIOPluginRegistry()->FindReaderIDByDescription(c_FBXBinaryFileDesc);
 
-	// Decode incoming packet
-	decodePacket(lScene, decodeMap, buf, num_key_received);
+	r = SaveScene(p_sdkManager, lScene, "output.fbx", lFileFormat, false);
+	if (!r) {
+		UI_Printf(" Problem when trying to save scene.");
+	}
 
-
-
+	lScene->Destroy();
 
 
 	closesocket(s);
@@ -494,7 +508,7 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 					
 			// Send data and clear the buffer
 			if (pIndex >= Max_key_num) {
-				if (sendto(s, (const char *)p, PACKET_SIZE, 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+				if (sendto(s, (const char *)p, Max_key_num*sizeof(PACKET), 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
 				{
 					UI_Printf("failed to send with error code : %d", WSAGetLastError());
 					//exit(EXIT_FAILURE);
@@ -506,8 +520,17 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 		keyI++;
 	}
 
-	
+	if (sendto(s, (const char *) p, pIndex*sizeof(PACKET), 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+	{
+		UI_Printf("failed to send with error code : %d", WSAGetLastError());
+		//exit(EXIT_FAILURE);
+	}
 
+	if (sendto(s, NULL, 0, 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+	{
+		UI_Printf("failed to send with error code : %d", WSAGetLastError());
+		//exit(EXIT_FAILURE);
+	}
 	delete p;
 }
 
