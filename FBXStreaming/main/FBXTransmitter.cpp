@@ -17,7 +17,7 @@ p_clientHostName(cHostName)
 	p_exportFileName = _strdup(exportFileName);
 
 	// Initialise winsock
-	initSockets();
+	initWSock();
 
 	// Initialize address structure
 	updateSocketAddr();
@@ -38,9 +38,9 @@ FBXTransmitter::~FBXTransmitter() {
 	WSACleanup();
 }
 /// <summary>
-/// Initialize sockets structure
+/// Initialize WinSock
 /// </summary>
-void FBXTransmitter::initSockets() {
+void FBXTransmitter::initWSock() {
 
 	// Declare and initialize variables
 	WSADATA wsaData;
@@ -129,7 +129,7 @@ void FBXTransmitter::transmit(char *inputFileName) {
 		FbxAnimCurveFilterUnroll postProcFilter;
 		applyUnrollFilterHierarchically(postProcFilter, markerSet);
 
-		encodePacket(lScene, markerSet, s);
+		encodeAnimation(lScene, markerSet, s);
 		// Save Scene
 	//	int lFileFormat = p_sdkManager->GetIOPluginRegistry()->FindReaderIDByDescription(c_FBXBinaryFileDesc);
 	//	SaveScene(p_sdkManager, lScene, "output.fbx", lFileFormat, false);
@@ -171,14 +171,27 @@ void FBXTransmitter::transmit(char *inputFileName) {
 /// Start Server. Client mode will not work
 /// </summary>
 void FBXTransmitter::startServer() {
-
-	// Result struct
-	struct addrinfo *result = NULL;
 	
+	if (p_serverMode) {
+		UI_Printf("Server has already been started.");
+		return;
+	}
+
+
 	// enable flag
 	p_serverMode = true;
 
+	std::async(std::launch::async,
+		[this] {
+		backgroundListenServer();
+		return true;
+	});
 
+	
+}
+
+
+void FBXTransmitter::backgroundListenServer() {
 	// Try loading export file
 	FbxScene* lScene = FbxScene::Create(p_sdkManager, "");
 	// Load File
@@ -191,7 +204,7 @@ void FBXTransmitter::startServer() {
 		p_serverMode = false;
 		return;
 	}
-	
+
 	//Find marker set in the scene
 	FbxNode *set = FBXJointConverter::findAnyMarkerSet(lScene);
 
@@ -205,39 +218,21 @@ void FBXTransmitter::startServer() {
 	std::map<FbxUInt64, FbxNode *> decodeMap;
 	initializeJointIdMap(set, decodeMap);
 
-
-	/*SOCKET ListenSocket = createDefaultListeningSocket();
-	if (ListenSocket == INVALID_SOCKET) {
-		p_serverMode = false;
-		return;
-	}
-
-	// Incoming client socket
-	SOCKET ClientSocket = INVALID_SOCKET;
-
-
-	// Accept client socket
-	ClientSocket = accept(ListenSocket, NULL, NULL);
-	if (ClientSocket == INVALID_SOCKET) {
-		printf("accept failed with error: %d\n", WSAGetLastError());
-		closesocket(ListenSocket);
-		WSACleanup();
-		return ;
-	}*/
-
-
 	// UDP Server
 	SOCKET s;
-	struct sockaddr_in server, si_other;
-	int slen, recv_byte_len;
-	PACKET buf[PACKET_SIZE];
-
-	slen = sizeof(si_other);
+	struct sockaddr_in server;
+	struct sockaddr  s_add_incoming;
+	int recv_byte_len, s_add_incoming_len = sizeof(s_add_incoming);
+	const int buf_len = PACKET_SIZE / sizeof(PACKET);
+	PACKET buf[buf_len];
 
 	//Create a socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
 	{
 		UI_Printf("Could not create socket : %d", WSAGetLastError());
+		lScene->Destroy();
+		p_serverMode = false;
+		return;
 	}
 	UI_Printf("Socket created.\n");
 
@@ -250,11 +245,13 @@ void FBXTransmitter::startServer() {
 	if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
 	{
 		UI_Printf("Bind failed with error code : %d", WSAGetLastError());
-		exit(EXIT_FAILURE);
+		lScene->Destroy();
+		closesocket(s);
+		p_serverMode = false;
+		return;
 	}
 	UI_Printf("Bind done\n");
 
-	//keep listening for data
 
 	while (true) {
 
@@ -265,13 +262,21 @@ void FBXTransmitter::startServer() {
 		memset(buf, '\0', PACKET_SIZE);
 
 		//try to receive some data, this is a blocking call
-		if ((recv_byte_len = recvfrom(s, (char *)buf, PACKET_SIZE, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
+		if ((recv_byte_len = recvfrom(s, (char *)buf, buf_len * sizeof(PACKET), 0, (struct sockaddr *) &s_add_incoming, &s_add_incoming_len)) == SOCKET_ERROR)
 		{
 			UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
-			exit(EXIT_FAILURE);
+			lScene->Destroy();
+			closesocket(s);
+			p_serverMode = false;
+			return;
 		}
 
-		UI_Printf("bytes recieved, %d", recv_byte_len);
+		// When receiving a Datagram of size 0, we finish the transmission
+		if (recv_byte_len == 0)
+			break;
+
+
+
 		// Calculate number of keyframes within packet
 		int num_key_received = recv_byte_len / sizeof(PACKET);
 
@@ -289,11 +294,9 @@ void FBXTransmitter::startServer() {
 	}
 
 	lScene->Destroy();
-
-
 	closesocket(s);
 
-	
+	p_serverMode = false;
 }
 
 
@@ -474,7 +477,7 @@ void FBXTransmitter::dropKeys(FbxScene *lScene, FbxNode *curNode) {
 }
 
 
-void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
+void FBXTransmitter::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
 	int Max_key_num = PACKET_SIZE / sizeof(PACKET);
 	PACKET *p = new PACKET[Max_key_num];
 	int pIndex = 0;
@@ -508,7 +511,7 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 					
 			// Send data and clear the buffer
 			if (pIndex >= Max_key_num) {
-				if (sendto(s, (const char *)p, Max_key_num*sizeof(PACKET), 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+				if (sendto(s, (const char *)p, Max_key_num*sizeof(PACKET), 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 				{
 					UI_Printf("failed to send with error code : %d", WSAGetLastError());
 					//exit(EXIT_FAILURE);
@@ -520,13 +523,13 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 		keyI++;
 	}
 
-	if (sendto(s, (const char *) p, pIndex*sizeof(PACKET), 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+	if (sendto(s, (const char *)p, pIndex*sizeof(PACKET), 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 	{
 		UI_Printf("failed to send with error code : %d", WSAGetLastError());
 		//exit(EXIT_FAILURE);
 	}
 
-	if (sendto(s, NULL, 0, 0, (struct sockaddr *) &si_other, sizeof(si_other)) == SOCKET_ERROR)
+	if (sendto(s, NULL, 0, 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 	{
 		UI_Printf("failed to send with error code : %d", WSAGetLastError());
 		//exit(EXIT_FAILURE);
@@ -536,15 +539,15 @@ void FBXTransmitter::encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s
 
 void FBXTransmitter::updateSocketAddr() {
 	//setup address structure
-	memset((char *)&si_other, 0, sizeof(si_other));
+	memset((char *)&p_sock_addr, 0, sizeof(p_sock_addr));
 	//int result;
 	//char name[20];
 	//result = InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
 	//InetNtop(AF_INET, &si_other.sin_addr, name, 20);
-	si_other.sin_family = AF_INET;
-	si_other.sin_port = htons(p_transmitterPort);
+	p_sock_addr.sin_family = AF_INET;
+	p_sock_addr.sin_port = htons(p_transmitterPort);
 	//si_other.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-	InetPton(AF_INET, p_clientHostName, &si_other.sin_addr);
+	InetPton(AF_INET, p_clientHostName, &p_sock_addr.sin_addr);
 }
 
 

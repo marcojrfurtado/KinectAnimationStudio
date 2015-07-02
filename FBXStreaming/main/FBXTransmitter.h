@@ -26,7 +26,7 @@ public:
 	/// <summary>
 	/// Initialize sockets structure
 	/// </summary>
-	void initSockets();
+	void initWSock();
 
 	/// <summary>
 	/// Init FBX SDK manager
@@ -108,7 +108,7 @@ private:
 	char *p_clientHostName;
 
 	// address to send to
-	struct sockaddr_in si_other;
+	struct sockaddr_in p_sock_addr;
 
 
 	// File where server will output keyframes
@@ -130,7 +130,7 @@ private:
 	/// <summary>
 	/// Encode keyframes from markers
 	/// </summary>
-	void encodePacket(FbxScene *lScene, FbxNode *markerSet, SOCKET s);
+	void encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s);
 
 	/// <summary>
 	/// Decode keyframes from a certain packet
@@ -146,5 +146,10 @@ private:
 	/// Creates a map the relates node pointsers and their IDs
 	/// </summary>
 	void initializeJointIdMap(FbxNode *parentNode, std::map<FbxUInt64, FbxNode *> &idMap);
+
+	/// <summary>
+	/// Starts server as a background thread
+	/// </summary>
+	void backgroundListenServer();
 
 };
