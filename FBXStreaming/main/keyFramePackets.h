@@ -8,7 +8,7 @@
 
 struct PACKET {
 	int joint_id;
-	float x, y, z;
+	float x, y, z, tx, ty, tz;
 	FbxLongLong time;
 };
 

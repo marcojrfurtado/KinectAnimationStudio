@@ -5,7 +5,7 @@ char * FBXJointConverter::c_setPrefix = "MarkerSet";
 char * FBXJointConverter::c_markerPrefix = "Marker";
 char * FBXJointConverter::c_separator = ":";
 FbxAMatrix FBXJointConverter::c_mIdentity = FbxAMatrix();
-
+std::vector<FbxTime> FBXJointConverter::c_emptyVector = std::vector<FbxTime>();
 
 
 
@@ -553,5 +553,21 @@ FbxNode* FBXJointConverter::findAnyMarkerSet(FbxScene *pScene) {
 		if (strncmp(childName, c_setPrefix,strlen(c_setPrefix)) == 0)
 			return childI;
 	}
+	return NULL;
+}
+
+FbxNode* FBXJointConverter::findAnySkeleton(FbxScene *pScene) {
+
+	FbxNode *rootNode = pScene->GetRootNode();
+
+	//	Iterate on children
+	int childCount = rootNode->GetChildCount();
+	for (int i = 0; i < childCount; i++) {
+		FbxNode *childI = rootNode->GetChild(i);
+
+		if (childI->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+			return childI;
+		}
+	} 
 	return NULL;
 }

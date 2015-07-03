@@ -45,6 +45,14 @@ public:
 	/// <param name="pScene">FBX Scene</param>
 	static FbxNode* findAnyMarkerSet(FbxScene *pScene);
 
+	/// <summary>
+	/// Find skeleton
+	/// </summary>
+	/// <param name="pScene">FBX Scene</param>
+	/// <param name="refNode">Reference skeleton</param>
+	/// <param name="tgtSkel">Skeleton root to receive hierarchy</param>
+	static FbxNode* findAnySkeleton(FbxScene *pScene);
+
 
 private:
 	// Constant declaration
