@@ -166,7 +166,7 @@ void GetOutputFileName(
 	delete ext;
 
 	// show the file name selected with the extention
-	SetWindowText(GetDlgItem(hWndParent, DECOMPRESS_TO_EDITBOX), szFile);
+	SetWindowText(GetDlgItem(hWndParent, EXPORT_TO_EDITBOX), szFile);
 
 	// Keep a copy of the file name
 	FBXSDK_strcpy(tgtFile, _MAX_PATH, szFile);

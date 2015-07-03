@@ -208,10 +208,12 @@ LRESULT CALLBACK WndProc(
 
 		case IMPORT_FROM_BUTTON:
 			GetInputFileName(hWnd,gszInputFile);
+			transmitter.setImporttName(gszInputFile);
 			break;
 
 		case EXPORT_TO_BUTTON:
-			GetInputFileName(hWnd, gszOutputFile);
+			GetOutputFileName(hWnd, gszOutputFile);
+			transmitter.setImporttName(gszOutputFile);
 			break;
 
 		case START_SERVER_BUTTON:

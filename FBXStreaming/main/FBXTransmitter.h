@@ -2,6 +2,7 @@
 
 #include "../common/stdafx.h"
 #include "keyFramePackets.h"
+#define TRANSLATION_ID -1
 
 /*
   Class used to load FBX files for transmission over network
@@ -87,6 +88,17 @@ public:
 		p_exportFileName = _strdup(newName);
 	}
 
+	/// <summary>
+	/// Sets import file name
+	/// </summary>
+	void setImporttName(char *newName) {
+		if (p_importFileName != NULL)
+			free(p_importFileName);
+		p_importFileName = _strdup(newName);
+	}
+
+	void createModelBaseFile();
+
 private:
 	// Constant Definitions
 
@@ -110,9 +122,14 @@ private:
 	// address to send to
 	struct sockaddr_in p_sock_addr;
 
+	PACKET buf[(PACKET_SIZE / sizeof(PACKET)) + 1];
+
 
 	// File where server will output keyframes
 	char *p_exportFileName;
+
+	// Name of import file
+	char *p_importFileName;
 
 	// Private methods
 

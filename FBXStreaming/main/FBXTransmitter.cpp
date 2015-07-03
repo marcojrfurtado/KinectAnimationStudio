@@ -195,11 +195,21 @@ void FBXTransmitter::backgroundListenServer() {
 	// Try loading export file
 	FbxScene* lScene = FbxScene::Create(p_sdkManager, "");
 	// Load File
-	bool r = LoadScene(p_sdkManager, lScene, p_exportFileName);
+	bool r = LoadScene(p_sdkManager, lScene, p_importFileName);
 
 	// Check if load was succesful
 	if (!r) {
-		UI_Printf("	Problem found when trying to load the scene. Make sure %s is a valid FBX file", p_exportFileName);
+		UI_Printf("	Problem found when trying to load the scene. Make sure %s is a valid FBX file", p_importFileName);
+		lScene->Destroy();
+		p_serverMode = false;
+		return;
+	}
+
+	FbxNode *skel = FBXJointConverter::findAnySkeleton(lScene);
+
+	// Check if load was succesful
+	if (!skel) {
+		UI_Printf("No skeleton found");
 		lScene->Destroy();
 		p_serverMode = false;
 		return;
@@ -224,7 +234,9 @@ void FBXTransmitter::backgroundListenServer() {
 	struct sockaddr  s_add_incoming;
 	int recv_byte_len, s_add_incoming_len = sizeof(s_add_incoming);
 	const int buf_len = PACKET_SIZE / sizeof(PACKET);
-	PACKET buf[buf_len];
+	std::mutex *bufferMutex = new std::mutex;
+	std::mutex *decodeMutex = new std::mutex;
+	//PACKET buf[buf_len+1];
 
 	//Create a socket
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
@@ -252,6 +264,7 @@ void FBXTransmitter::backgroundListenServer() {
 	}
 	UI_Printf("Bind done\n");
 
+	std::vector<std::future<bool>> futures;
 
 	while (true) {
 
@@ -259,7 +272,10 @@ void FBXTransmitter::backgroundListenServer() {
 		fflush(stdout);
 
 		//clear the buffer by filling null, it might have previously received data
-		memset(buf, '\0', PACKET_SIZE);
+		{
+			std::unique_lock<std::mutex> lock(*bufferMutex);
+			memset(buf, '\0', PACKET_SIZE);
+		}
 
 		//try to receive some data, this is a blocking call
 		if ((recv_byte_len = recvfrom(s, (char *)buf, buf_len * sizeof(PACKET), 0, (struct sockaddr *) &s_add_incoming, &s_add_incoming_len)) == SOCKET_ERROR)
@@ -275,20 +291,52 @@ void FBXTransmitter::backgroundListenServer() {
 		if (recv_byte_len == 0)
 			break;
 
+		//auto task = 
+		futures.push_back(std::async(std::launch::async,
+			[recv_byte_len, lScene, decodeMap, bufferMutex, buf_len, decodeMutex, this] {
+			// Calculate number of keyframes within packet
+			const int num_key_received = recv_byte_len / sizeof(PACKET);
+			PACKET *decodeBuf = new PACKET[buf_len+1];
+
+			
+			
+			{
+				std::unique_lock<std::mutex> lock(*bufferMutex);
+				memcpy(decodeBuf, buf, recv_byte_len);
+			}
+			
+			UI_Printf("bytes received %d", recv_byte_len);
 
 
-		// Calculate number of keyframes within packet
-		int num_key_received = recv_byte_len / sizeof(PACKET);
 
+			// Decode incoming packet
+			{
+				std::unique_lock<std::mutex> lock(*decodeMutex);
+				decodePacket(lScene, decodeMap, decodeBuf, num_key_received);
+			}
+			delete decodeBuf;
+			return true;
+		}));
 
-		// Decode incoming packet
-		decodePacket(lScene, decodeMap, buf, num_key_received);
+		//futures.push_back(task);
+
 	}
+	
+	for (auto &it:futures) {
+		it.wait();
+	}
+	
+	delete bufferMutex;
+	delete decodeMutex;
+
+	UI_Printf("Decode has finished");
+
+	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *) skel->GetName());
 
 	// Save Scene
 	int lFileFormat = p_sdkManager->GetIOPluginRegistry()->FindReaderIDByDescription(c_FBXBinaryFileDesc);
 
-	r = SaveScene(p_sdkManager, lScene, "output.fbx", lFileFormat, false);
+	r = SaveScene(p_sdkManager, lScene, p_exportFileName, lFileFormat, false);
 	if (!r) {
 		UI_Printf(" Problem when trying to save scene.");
 	}
@@ -481,7 +529,7 @@ void FBXTransmitter::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKE
 	int Max_key_num = PACKET_SIZE / sizeof(PACKET);
 	PACKET *p = new PACKET[Max_key_num];
 	int pIndex = 0;
-	int keyI = 0;
+	int keyI = 1;
 
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
@@ -507,7 +555,24 @@ void FBXTransmitter::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKE
 				p[pIndex].z = rotZCurve->KeyGet(keyI).GetValue();
 				p[pIndex].time = rotZCurve->KeyGet(keyI).GetTime().GetMilliSeconds();
 			}
+
+
+			// Obtain translation curves
+			FbxAnimCurve *transXCurve = markerSet->GetChild(ci)->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+			FbxAnimCurve *transYCurve = markerSet->GetChild(ci)->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+			FbxAnimCurve *transZCurve = markerSet->GetChild(ci)->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+			if (transXCurve) {
+				p[pIndex].tx = transXCurve->KeyGet(keyI).GetValue();
+			}
+			if (transYCurve) {
+				p[pIndex].ty = transYCurve->KeyGet(keyI).GetValue();
+			}
+			if (transZCurve) {
+				p[pIndex].tz = transZCurve->KeyGet(keyI).GetValue();
+			}
 			pIndex++;
+			Sleep(30);
 					
 			// Send data and clear the buffer
 			if (pIndex >= Max_key_num) {
@@ -523,6 +588,7 @@ void FBXTransmitter::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKE
 		keyI++;
 	}
 
+	Sleep(1000);
 	if (sendto(s, (const char *)p, pIndex*sizeof(PACKET), 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 	{
 		UI_Printf("failed to send with error code : %d", WSAGetLastError());
@@ -578,13 +644,21 @@ void FBXTransmitter::decodePacket(FbxScene *lScene, std::map<FbxUInt64,FbxNode *
 		FbxAnimCurve *rotCurveY = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 		FbxAnimCurve *rotCurveZ = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
 
+		FbxAnimCurve *transCurveX = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+		FbxAnimCurve *transCurveY = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+		FbxAnimCurve *transCurveZ = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+		FbxTime time; 
+		time.SetMilliSeconds(p[i].time);
+
 		if (rotCurveX) {
 			rotCurveX->KeyModifyBegin();
 
 			// Start adding key
 			// TODO: Speed up this operation using index
-			int keyIndex = rotCurveX->KeyAdd(p[i].time);
+			int keyIndex = rotCurveX->KeyAdd(time);
 			rotCurveX->KeySetValue(keyIndex, p[i].x);
+			rotCurveX->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationCubic);
 
 			rotCurveX->KeyModifyEnd();
 		}
@@ -594,8 +668,9 @@ void FBXTransmitter::decodePacket(FbxScene *lScene, std::map<FbxUInt64,FbxNode *
 
 			// Start adding key
 			// TODO: Speed up this operation using index
-			int keyIndex = rotCurveY->KeyAdd(p[i].time);
+			int keyIndex = rotCurveY->KeyAdd(time);
 			rotCurveY->KeySetValue(keyIndex, p[i].y);
+			rotCurveY->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationCubic);
 
 			rotCurveY->KeyModifyEnd();
 		}
@@ -605,13 +680,50 @@ void FBXTransmitter::decodePacket(FbxScene *lScene, std::map<FbxUInt64,FbxNode *
 
 			// Start adding key
 			// TODO: Speed up this operation using index
-			int keyIndex = rotCurveZ->KeyAdd(p[i].time);
+			int keyIndex = rotCurveZ->KeyAdd(time);
 			rotCurveZ->KeySetValue(keyIndex, p[i].z);
+			rotCurveZ->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationCubic);
 
 			rotCurveZ->KeyModifyEnd();
 		}
 
 
+
+		if (transCurveX) {
+			transCurveX->KeyModifyBegin();
+
+			// Start adding key
+			// TODO: Speed up this operation using index
+			int keyIndex = transCurveX->KeyAdd(time);
+			transCurveX->KeySetValue(keyIndex, p[i].x);
+			transCurveX->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationLinear);
+
+			transCurveX->KeyModifyEnd();
+		}
+
+		if (transCurveY) {
+			transCurveY->KeyModifyBegin();
+
+			// Start adding key
+			// TODO: Speed up this operation using index
+			int keyIndex = transCurveY->KeyAdd(time);
+			transCurveY->KeySetValue(keyIndex, p[i].y);
+			transCurveY->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationLinear);
+
+			transCurveY->KeyModifyEnd();
+		}
+
+		if (transCurveZ) {
+			transCurveZ->KeyModifyBegin();
+
+			// Start adding key
+			// TODO: Speed up this operation using index
+			int keyIndex = transCurveZ->KeyAdd(time);
+			transCurveZ->KeySetValue(keyIndex, p[i].z);
+			transCurveZ->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationLinear);
+
+			transCurveZ->KeyModifyEnd();
+		}
 	}
 
 
@@ -629,5 +741,45 @@ void FBXTransmitter::initializeJointIdMap(FbxNode *parentNode, std::map<FbxUInt6
 		FbxNode* childI = parentNode->GetChild(i);
 		idMap[getCustomIdProperty(childI)] = childI;
 	}
+
+}
+
+
+void FBXTransmitter::createModelBaseFile() {
+	// Try loading export file
+	FbxScene* lScene = FbxScene::Create(p_sdkManager, "");
+	// Load File
+	bool r = LoadScene(p_sdkManager, lScene, p_importFileName);
+
+	// Check if load was succesful
+	if (!r) {
+		UI_Printf("	Problem found when trying to load the scene. Make sure %s is a valid FBX file", p_importFileName);
+		lScene->Destroy();
+		p_serverMode = false;
+		return;
+	}
+
+	// Get children in the scene
+	int childCount = lScene->GetRootNode()->GetChildCount();
+
+	// For each node that is a child of the root
+	for (int i = 0; i < childCount; i++) {
+
+		// Get scene child
+		FbxNode *pNode = lScene->GetRootNode()->GetChild(i);
+
+		if (pNode == NULL)
+			continue;
+
+		FbxNodeAttribute::EType pNodeAttType = pNode->GetNodeAttribute()->GetAttributeType();
+
+		// If not skeleton root, ignore node
+		if (pNodeAttType != FbxNodeAttribute::EType::eSkeleton)
+			continue;
+
+		// Convert to positional markers ( markers are added to the scene )
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode);
+	}
+
 
 }
