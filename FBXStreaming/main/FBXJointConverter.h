@@ -10,8 +10,9 @@ public:
 	/// </summary>
 	/// <param name="pScene">FBX Scene</param>
 	/// <param name="sNode">Skeleton root node</param>
+	/// <param name="onlyCopyTPose">Don't animate markers, only copy T-Pose information</param>
 	/// <return>Node representing marker Set</return>
-	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode);
+	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool onlyCopyTPose = false);
 
 	/// <summary>
 	/// Creates hierarchical Skeleton from absolute markers
@@ -22,7 +23,7 @@ public:
 	/// <param name="newSkelName">Name of new skeleton to be created</param>
 	/// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 	/// <return>Pointer to our newly created skeleton</return>
-	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, std::vector<FbxTime> &keyVec = c_emptyVector);
+	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, FbxNode *markerSet = NULL, std::vector<FbxTime> &keyVec = c_emptyVector);
 
 	/// <summary>
 	/// Extract key times from curve, and add them to provided vector

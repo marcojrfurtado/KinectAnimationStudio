@@ -15,8 +15,9 @@ std::vector<FbxTime> FBXJointConverter::c_emptyVector = std::vector<FbxTime>();
 /// <param name="pScene">FBX Scene</param>
 /// <param name="sNode">Skeleton root node</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
+/// <param name="onlyCopyTPose">Don't animate markers, only copy T-Pose information</param>
 /// <return>Node representing marker Set</return>
-FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode)  {
+FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode,bool onlyCopyTPose)  {
 
 	const char *nodeName = sNode->GetName();
 
@@ -49,6 +50,9 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode) 
 		// For each key time, animate markers
 		for (auto &it : keyTimeVec) {
 			animatePositionalMarkers(pLayer, it, markerSet ,sNode);
+			// Only get time at position 0
+			if (onlyCopyTPose)
+				break;
 		}
 		
 		UI_Printf("Markers were animated.");
@@ -57,8 +61,6 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode) 
 		//FbxNode *bip2skel = fromAbsoluteMarkers(pScene, sNode, "Bip02", keyTimeVec);
 
 		UI_Printf("Skeleton has been created.");
-
-
 
 		UI_Printf("Post processing has been finished.");
 
@@ -75,11 +77,22 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode) 
 /// </summary>
 /// <param name="pScene">FBX Scene</param>
 /// <param name="sNode">Skeleton used as a reference to build the hierarchy</param>
-/// <param name="markerSet">Markers to be used</param>
 /// <param name="newSkelName">Name of new skeleton to be created</param>
+/// <param name="markerSet">Markers to be used</param>
 /// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 /// <return>Pointer to our newly created skeleton</return>
-FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode , char *newSkelName, std::vector<FbxTime> &keyVec)  {
+FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
+
+
+	// Find markers
+	if (!markerSet)
+		markerSet = findMarkerSet(pScene, refNode);
+
+	if (!markerSet) {
+		// Unable to find marker set on the scene
+		UI_Printf("Set of positional markers could not be found on the scene. Make sure they are being created.");
+		return NULL;
+	}
 
 	// If not initialized
 	if (keyVec.size() == 0) {
@@ -90,7 +103,7 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 
 
 		// Collect keyframe times
-		FbxAnimCurve *rootTranslationCurveX = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		FbxAnimCurve *rootTranslationCurveX = markerSet->GetChild(0)->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
 		extractKeyTimesFromCurve(rootTranslationCurveX, keyVec);
 	}
 
@@ -104,12 +117,6 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 
 	// Copy hierarchy
 	copySkeleton(pScene, refNode, newSkelNode);
-
-
-
-
-	// Find markers
-	FbxNode *markerSet = findMarkerSet(pScene, refNode);
 
 
 	// Get Animation Layer

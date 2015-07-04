@@ -213,7 +213,7 @@ LRESULT CALLBACK WndProc(
 
 		case EXPORT_TO_BUTTON:
 			GetOutputFileName(hWnd, gszOutputFile);
-			transmitter.setImporttName(gszOutputFile);
+			transmitter.setExportName(gszOutputFile);
 			break;
 
 		case START_SERVER_BUTTON:
@@ -227,8 +227,7 @@ LRESULT CALLBACK WndProc(
 			}
 			else {
 				UI_Printf("Beginning of transmission");
-				transmitter.transmit(gszInputFile);
-				UI_Printf("End of transmission");
+				transmitter.transmit();
 			}
 			break;
 		case UPDATE_SERVER_CLIENT_PORT_BUTTON:
@@ -252,6 +251,12 @@ LRESULT CALLBACK WndProc(
 			GetWindowText(GetDlgItem(hWnd, SET_CLIENT_CONNECT_ADDRESS_EDIT), addressStr, 50);
 			transmitter.setConnectAddress(addressStr);
 			UI_Printf("Client connection address has been updated to %s.",addressStr);
+			break;
+
+		case CREATE_BASE_MODEL_FILE_BUTTON:
+			//Create base model file
+			UI_Printf("Creating base model file.");
+			transmitter.createModelBaseFile();
 			break;
 
 		default:
@@ -378,6 +383,23 @@ void CreateUIControls(
 		30,                         // int nHeight    
 		hWndParent,                 // HWND hWndParent
 		(HMENU)START_SERVER_BUTTON,   // HMENU hMenu or control's ID for WM_COMMAND 
+		hInst,                      // HINSTANCE hInstance
+		NULL                        // LPVOID lpParam
+		);
+
+
+	// create the <Create Model File> button
+	CreateWindowEx(
+		0,                          // DWORD dwExStyle,
+		"BUTTON",                   // LPCTSTR lpClassName
+		"Create Model File",            // LPCTSTR lpWindowName / control caption
+		dwStyle,                    // DWORD dwStyle
+		10,                         // int x
+		170,                         // int y
+		130,                        // int nWidth
+		30,                         // int nHeight    
+		hWndParent,                 // HWND hWndParent
+		(HMENU)CREATE_BASE_MODEL_FILE_BUTTON,   // HMENU hMenu or control's ID for WM_COMMAND 
 		hInst,                      // HINSTANCE hInstance
 		NULL                        // LPVOID lpParam
 		);

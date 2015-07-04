@@ -4,11 +4,14 @@
 
 #define PACKET_SIZE 512
 
+// Since we only have one translation curve, it can be treated in a special way
+#define TRANSLATION_CUSTOM_ID -1
+
 // struct for what a packet will transmit
 
 struct PACKET {
-	int joint_id;
-	float x, y, z, tx, ty, tz;
+	short joint_id;
+	float x, y, z;
 	FbxLongLong time;
 };
 

@@ -2,7 +2,6 @@
 
 #include "../common/stdafx.h"
 #include "keyFramePackets.h"
-#define TRANSLATION_ID -1
 
 /*
   Class used to load FBX files for transmission over network
@@ -36,10 +35,9 @@ public:
 	void initFBXSDKManager(FbxManager *fManager) { p_sdkManager = fManager; };
 
 	/// <summary>
-	/// Send file to the server
+	/// Send import file to the server
 	/// </summary>
-	/// <param name="inputFileName">MoCap file to be sent over the network</param>
-	void transmit(char *inputFileName);
+	void transmit();
 
 	/// <summary>
 	/// Start Server. Client mode will not work
@@ -104,6 +102,9 @@ private:
 
 	// Default file format for output
 	const char *c_FBXBinaryFileDesc = "FBX binary(*.fbx)";
+	// Server timeout
+	const int c_serverTimeoutSec = 5;
+	const int c_serverTimeoutUSec = 0;
 
 	// Object Variables
 
@@ -112,6 +113,8 @@ private:
 
 	// Defines whether server mode has been enabled
 	std::atomic_bool p_serverMode;
+	// Defines whether we are transmitting a file
+	std::atomic_bool p_isTransmitting;
 
 	// Transmitter port ( used by both client and server )
 	int p_transmitterPort;
@@ -122,7 +125,7 @@ private:
 	// address to send to
 	struct sockaddr_in p_sock_addr;
 
-	PACKET buf[(PACKET_SIZE / sizeof(PACKET)) + 1];
+	PACKET p_serverbuf[(PACKET_SIZE / sizeof(PACKET)) + 1];
 
 
 	// File where server will output keyframes
@@ -152,7 +155,7 @@ private:
 	/// <summary>
 	/// Decode keyframes from a certain packet
 	/// </summary>
-	void decodePacket(FbxScene *lScene, std::map<FbxUInt64, FbxNode *> jointMap, PACKET *p, int keyframeNum);
+	void decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, PACKET *p, int keyframeNum);
 
 	/// <summary>
 	/// Update socket address structure
@@ -162,11 +165,34 @@ private:
 	/// <summary>
 	/// Creates a map the relates node pointsers and their IDs
 	/// </summary>
-	void initializeJointIdMap(FbxNode *parentNode, std::map<FbxUInt64, FbxNode *> &idMap);
+	void initializeJointIdMap(FbxNode *parentNode, std::map<short, FbxNode *> &idMap);
 
 	/// <summary>
 	/// Starts server as a background thread
 	/// </summary>
 	void backgroundListenServer();
+	
+	/// <summary>
+	/// Encodes keys for curves from a given node
+	/// </summary>
+	/// <param name="animLayer">FBX Anim layer</param>
+	/// <param name="tgtNode">Node to have curves extracted</param>
+	/// <param name="p">Packet to be sent</param>
+	/// <param name="pIndex">Index of current keyframe</param>
+	/// <param name="s">Socket used to send packages</param>
+	/// <param name="isTranslation">Are these translation curves?</param>
+	/// <return>Updated pIndex</return>
+	int encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
+
+
+
+	/// <summary>
+	/// Winsock 2 RECV function with timeout
+	/// </summary>
+	/// <param name="socket">Listening socket</param>
+	/// <param name="sec">Wait time, in sec</param>
+	/// <param name="usec">wait time, in millisecond</param>
+	/// <return>0 on timeout, >1 on data ready, -1 (SOCKET_ERROR) on error</return>
+	int recvfromTimeOutUDP(SOCKET socket, long sec, long usec);
 
 };
