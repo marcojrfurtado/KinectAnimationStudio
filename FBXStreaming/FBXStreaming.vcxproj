@@ -11,12 +11,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main\FBXCoding.cpp" />
     <ClCompile Include="main\FBXJointConverter.cpp" />
     <ClCompile Include="main\FBXTransmitter.cpp" />
     <ClCompile Include="UI\UI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common\stdafx.h" />
+    <ClInclude Include="main\FBXCoding.h" />
     <ClInclude Include="main\FBXJointConverter.h" />
     <ClInclude Include="main\FBXTransmitter.h" />
     <ClInclude Include="main\keyFramePackets.h" />

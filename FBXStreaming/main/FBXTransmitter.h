@@ -2,6 +2,7 @@
 
 #include "../common/stdafx.h"
 #include "keyFramePackets.h"
+#include "FBXCoding.h"
 
 /*
   Class used to load FBX files for transmission over network
@@ -106,6 +107,8 @@ private:
 	const int c_serverTimeoutSec = 5;
 	const int c_serverTimeoutUSec = 0;
 
+	const int c_defaultCodingLatency = 6;
+
 	// Object Variables
 
 	// Default SDK manager
@@ -122,9 +125,6 @@ private:
 	// Nome of client for which host connects to
 	char *p_clientHostName;
 
-	// address to send to
-	struct sockaddr_in p_sock_addr;
-
 	PACKET p_serverbuf[(PACKET_SIZE / sizeof(PACKET)) + 1];
 
 
@@ -133,6 +133,12 @@ private:
 
 	// Name of import file
 	char *p_importFileName;
+
+	// address to send to
+	struct sockaddr_in p_sock_addr;
+
+
+	FBXCoding p_coding;
 
 	// Private methods
 
@@ -148,16 +154,6 @@ private:
 	void dropKeys(FbxScene *lScene, FbxNode *mSet);
 
 	/// <summary>
-	/// Encode keyframes from markers
-	/// </summary>
-	void encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s);
-
-	/// <summary>
-	/// Decode keyframes from a certain packet
-	/// </summary>
-	void decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, PACKET *p, int keyframeNum);
-
-	/// <summary>
 	/// Update socket address structure
 	/// </summary>
 	void updateSocketAddr();
@@ -171,19 +167,6 @@ private:
 	/// Starts server as a background thread
 	/// </summary>
 	void backgroundListenServer();
-	
-	/// <summary>
-	/// Encodes keys for curves from a given node
-	/// </summary>
-	/// <param name="animLayer">FBX Anim layer</param>
-	/// <param name="tgtNode">Node to have curves extracted</param>
-	/// <param name="p">Packet to be sent</param>
-	/// <param name="pIndex">Index of current keyframe</param>
-	/// <param name="s">Socket used to send packages</param>
-	/// <param name="isTranslation">Are these translation curves?</param>
-	/// <return>Updated pIndex</return>
-	int encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
-
 
 
 	/// <summary>
