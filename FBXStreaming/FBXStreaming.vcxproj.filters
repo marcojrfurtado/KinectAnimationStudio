@@ -28,6 +28,12 @@
     <Filter Include="Header Files\main">
       <UniqueIdentifier>{545c403a-7087-4e6a-ab07-f171b656ac61}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\config">
+      <UniqueIdentifier>{f3e83980-a9e6-4497-b639-0cab0758277e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\config">
+      <UniqueIdentifier>{a0d4ca40-9886-442d-9b9b-6826743ad754}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UI\UI.h">
@@ -54,6 +60,9 @@
     <ClInclude Include="main\FBXCoding.h">
       <Filter>Header Files\main</Filter>
     </ClInclude>
+    <ClInclude Include="config\ConfigFileParser.h">
+      <Filter>Header Files\config</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UI\UI.cpp">
@@ -67,6 +76,9 @@
     </ClCompile>
     <ClCompile Include="main\FBXCoding.cpp">
       <Filter>Source Files\main</Filter>
+    </ClCompile>
+    <ClCompile Include="config\ConfigFileParser.cpp">
+      <Filter>Source Files\config</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

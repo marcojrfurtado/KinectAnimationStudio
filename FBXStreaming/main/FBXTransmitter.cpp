@@ -12,7 +12,7 @@
 FBXTransmitter::FBXTransmitter(FbxManager *fManager, int tPort, char *cHostName, char *exportFileName) : p_sdkManager(fManager),
 p_transmitterPort(tPort),
 p_clientHostName(cHostName), 
-p_coding(c_defaultCodingLatency)
+p_coding()
 {
 	// Initialize export file name
 	p_exportFileName = _strdup(exportFileName);

@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="config\ConfigFileParser.cpp" />
     <ClCompile Include="main\FBXCoding.cpp" />
     <ClCompile Include="main\FBXJointConverter.cpp" />
     <ClCompile Include="main\FBXTransmitter.cpp" />
@@ -18,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common\stdafx.h" />
+    <ClInclude Include="config\ConfigFileParser.h" />
     <ClInclude Include="main\FBXCoding.h" />
     <ClInclude Include="main\FBXJointConverter.h" />
     <ClInclude Include="main\FBXTransmitter.h" />

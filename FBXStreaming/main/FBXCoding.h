@@ -11,7 +11,9 @@ public:
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	FBXCoding(int latency);
+	/// <param name="enableInterleaving">Interleave packets before sending</param>
+	/// <param name="latency">Interleaving latency window</param>
+	FBXCoding(bool enableInterleaving = true, int latency = 8);
 
 	/// <summary>
 	/// Destructor
@@ -35,9 +37,14 @@ public:
 
 private:
 
-	int latencyWindow;
+	// True, if we are interleaving packets
+	bool  p_isInterleavingMode;
 
-	std::vector<int> keyIvec;
+	// Latency window, used for interleaving packets
+	int p_latencyWindow;
+
+	// Address used to send packets
+	struct sockaddr_in p_sock_addr;
 
 	/// <summary>
 	/// Encodes keys for curves from a given node
@@ -52,5 +59,5 @@ private:
 	int encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
 
 
-	struct sockaddr_in p_sock_addr;
+
 };

@@ -1,13 +1,16 @@
 #include "FBXCoding.h"
-#include "FBXTransmitter.h"
-//#include "FBXJointConverter.h"
-//#include "keyFramePackets.h"
 
 
 /// <summary>
 /// Constructor
 /// </summary>
-FBXCoding::FBXCoding(int latency) { latencyWindow = latency;}
+/// <param name="enableInterleaving">Interleave packets before sending</param>
+/// <param name="latency">Interleaving latency window</param>
+FBXCoding::FBXCoding(bool enableInterleaving, int latency) :
+p_isInterleavingMode(enableInterleaving),
+p_latencyWindow(latency)
+{ 
+}
 
 
 /// <summary>
@@ -22,8 +25,9 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 	PACKET *p = new PACKET[Max_key_num];
 	int pIndex = 0;
 
-	//checking how many keys were coded
-	//int keySent = 1;
+	// Vector used to store key indexes
+	std::vector<int> keyIvec;
+	keyIvec.reserve(p_latencyWindow);
 
 	// We are ignoring the key at index 0, as this
 	int keyI = 1;
@@ -48,11 +52,11 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 		
 		// If vector is the requested size of latency window then shuffle it. 
 		// If not add it to the vector keyIvec
-		if (keyIvec.size() != latencyWindow) {
+		if (keyIvec.size() != p_latencyWindow) {
 			keyIvec.push_back(keyI);
 			//UI_Printf("%d has been added to the vector", keyI);
 		}
-		if (keyIvec.size() == latencyWindow || keyI == (keyTotal-1)) {
+		if (keyIvec.size() == p_latencyWindow || keyI == (keyTotal-1)) {
 			std::random_shuffle(keyIvec.begin(), keyIvec.end());
 			for (std::vector<int>::iterator it = keyIvec.begin(); it != keyIvec.end(); ++it) {
 				//UI_Printf("now encoding key: %d", *it);
@@ -77,8 +81,6 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 			
 				}
 				
-				//UI_Printf("Sent %d / %d keys", keySent, keyTotal);
-				//keySent++;
 			}
 
 			keyIvec.clear();
@@ -116,87 +118,6 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 
 
 }
-
-/*
-void FBXTransmitter::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
-	// Maximum number of keys a package can store
-	const int Max_key_num = PACKET_SIZE / sizeof(PACKET);
-
-	PACKET *p = new PACKET[Max_key_num];
-	int pIndex = 0;
-
-	// We are ignoring the key at index 0, as this
-	int keyI = 1;
-
-	// Number of packets sent
-	int packetSentCount = 0;
-
-	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
-	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
-
-	int keyTotal = getKeyCount(markerSet->GetChild(0), lScene);
-
-	int childCount = markerSet->GetChildCount();
-
-	// Variable used to alert the user about how many keys have already been processed
-	int encodedKeyCount = keyI;
-	while (keyI < keyTotal) {
-		if ((((float)(keyI - encodedKeyCount)) / keyTotal) > 0.2) {
-			encodedKeyCount = keyI;
-			UI_Printf("%f%% of the keys have been encoded.", (((float)encodedKeyCount) / keyTotal) * 100);
-		}
-
-		for (int ci = 0; ci < childCount; ci++) {
-			int oldPIndex = pIndex;
-
-			// Encode rotation curves
-			pIndex = encodeKeyFrame(animLayer, markerSet->GetChild(ci), keyI, p, pIndex, s, false);
-			if (oldPIndex == (Max_key_num - 1) && pIndex == 0) // packet has just been sent out
-				packetSentCount++;
-
-			oldPIndex = pIndex;
-			// Encode translation curves - if they exist
-			pIndex = encodeKeyFrame(animLayer, markerSet->GetChild(ci), keyI, p, pIndex, s, true);
-			if (oldPIndex == (Max_key_num - 1) && pIndex == 0)
-				packetSentCount++;
-
-			// Sleep for a while, before sending more
-			// TODO - fix concurrency issues. Make decoder faster
-			Sleep(5);
-		}
-		keyI++;
-	}
-
-	Sleep(100);
-	if (pIndex > 0) {
-		if (sendto(s, (const char *)p, pIndex*sizeof(PACKET), 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
-		{
-			UI_Printf("failed to send with error code : %d", WSAGetLastError());
-		}
-		packetSentCount++;
-	}
-
-
-	if (sendto(s, NULL, 0, 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
-	{
-		UI_Printf("failed to send with error code : %d", WSAGetLastError());
-	}
-	packetSentCount++;
-
-	UI_Printf("Encoding has finished. %d packages were sent.", packetSentCount);
-
-	delete p;
-
-	// Destroy scene
-	lScene->Destroy();
-
-	// Close socket after transmitting
-	closesocket(s);
-
-	// Disable transmission mode ( this enables other files to be transmitted )
-	p_isTransmitting = false;
-}
-*/
 
 
 /// <summary>
