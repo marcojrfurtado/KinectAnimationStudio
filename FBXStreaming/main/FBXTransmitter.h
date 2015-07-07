@@ -103,7 +103,7 @@ private:
 	// Default file format for output
 	const char *c_FBXBinaryFileDesc = "FBX binary(*.fbx)";
 	// Server timeout
-	const int c_serverTimeoutSec = 5;
+	const int c_serverTimeoutSec = 10;
 	const int c_serverTimeoutUSec = 0;
 
 	// Object Variables
