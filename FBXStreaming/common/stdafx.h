@@ -43,6 +43,10 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <iostream>
+#include <string>
+#include <fstream>
+#include<sstream>
 
 // WIN Libraries
 #include <winsock2.h>

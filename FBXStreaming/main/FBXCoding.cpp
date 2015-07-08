@@ -10,6 +10,15 @@ FBXCoding::FBXCoding(bool enableInterleaving, int latency) :
 p_isInterleavingMode(enableInterleaving),
 p_latencyWindow(latency)
 { 
+	ConfigFileParser &parser = ConfigFileParser::getInstance();
+	std::string latentsize = parser.getParameter(LATENCY_WINDOW);
+	std::string interleave = parser.getParameter(ENABLE_INTERLEAVING);
+
+	if (latentsize.compare("ERROR") != 0) {
+
+	
+	}
+
 }
 
 

@@ -2,6 +2,7 @@
 
 #include "../common/stdafx.h"
 #include "keyFramePackets.h"
+#include "../config/ConfigFileParser.h"
 
 
 class FBXCoding {
