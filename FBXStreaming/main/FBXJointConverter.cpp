@@ -17,7 +17,7 @@ std::vector<FbxTime> FBXJointConverter::c_emptyVector = std::vector<FbxTime>();
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
 /// <param name="onlyCopyTPose">Don't animate markers, only copy T-Pose information</param>
 /// <return>Node representing marker Set</return>
-FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode,bool onlyCopyTPose)  {
+FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool gobalTransformationEnable, bool onlyCopyTPose)  {
 
 	const char *nodeName = sNode->GetName();
 
@@ -49,7 +49,7 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode,b
 
 		// For each key time, animate markers
 		for (auto &it : keyTimeVec) {
-			animatePositionalMarkers(pLayer, it, markerSet ,sNode);
+			animatePositionalMarkers(pLayer, it, markerSet, sNode, gobalTransformationEnable);
 			// Only get time at position 0
 			if (onlyCopyTPose)
 				break;
@@ -81,7 +81,7 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode,b
 /// <param name="markerSet">Markers to be used</param>
 /// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 /// <return>Pointer to our newly created skeleton</return>
-FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
+FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, bool enableGlobalTransformation, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
 
 
 	// Find markers
@@ -126,7 +126,7 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 	if (pLayer) {
 		// For each key time,Animate new skeleton
 		for (auto &it : keyVec) {
-			animateJointsFromMarkers(pLayer, it, markerSet, newSkelNode);
+			animateJointsFromMarkers(pLayer, it, markerSet, newSkelNode, enableGlobalTransformation);
 		}
 	}
 
@@ -201,10 +201,14 @@ int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerS
 /// <param name="mSet">Marker Set</param>
 /// <param name="cNode">Current skeleton node</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *cNode, FbxAMatrix parentTrans) {
+void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *cNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
 
-	// Find transformation for current node
-	FbxAMatrix cTransformation = parentTrans;
+	FbxAMatrix cTransformation;
+	
+	if (enableGlobalTransformation) {
+		// Find transformation for current node
+		cTransformation = parentTrans;
+	}
 	
 	// Only perform this step if joint is animatable
 	if (isAnimatable(cNode)) {
@@ -237,11 +241,16 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 /// <param name="mSet">Marker Set</param>
 /// <param name="tgtNode">Node to be animated</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, FbxAMatrix parentTrans) {
+void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
 	
-	// Transformation to be passed on to our children. By default, it should be our own transformaiton
-	FbxAMatrix childReferenceTransformation = parentTrans;
+	
+	FbxAMatrix childReferenceTransformation;
 
+	if (enableGlobalTransformation) {
+		// Transformation to be passed on to our children. By default, it should be our own transformaiton
+		childReferenceTransformation = parentTrans;
+	}
+	
 
 	// Find corresponding marker
 	FbxNode *tgtMarkerNode = findMarker(mSet, tgtNode->GetNameOnly());

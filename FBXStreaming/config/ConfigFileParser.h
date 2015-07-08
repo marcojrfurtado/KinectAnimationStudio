@@ -4,6 +4,7 @@
 
 #define LATENCY_WINDOW "Latency"
 #define ENABLE_INTERLEAVING "Interleaving"
+#define ENABLE_GLOBAL_TRANSFORMATION "Global"
 
 
 class ConfigFileParser
@@ -16,10 +17,19 @@ public:
 		return instance;
 	}
 	
+	/// <summary>
+	/// Get requested parameters (LATENCY_WINDOW, ENABLE_INTERLEAVING)
+	/// </summary>
+	/// <return>If the requested parameter is found(key of the map), return the corresponding string. Else
+	//it returns the string "ERROR"</return>
 	std::string getParameter(const std::string);
 
 private:
-	ConfigFileParser() { LoadConfigFile(); };                   // Constructor? (the {} brackets) are needed here.
+	
+	/// <summary>
+	/// Constructor
+	/// </summary>
+	ConfigFileParser() { LoadConfigFile(); };
 
 	/// <summary>
 	/// Load and config.txt file, inserting parameters into the map "parameters" - Interleaving, latency, AbsMarkers
@@ -27,6 +37,7 @@ private:
 	void LoadConfigFile();
 
 
+	// Map to store the parameters from config.txt
 	std::map<std::string, std::string> parameters;
 
 	// C++ 11

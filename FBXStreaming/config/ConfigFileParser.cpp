@@ -1,8 +1,9 @@
 #include "ConfigFileParser.h"
 
 
-
-
+/// <summary>
+/// Load and config.txt file, inserting parameters into the map "parameters" - Interleaving, latency, AbsMarkers
+/// </summary>
 void ConfigFileParser::LoadConfigFile() {
 
 	// create a file-reading object
@@ -58,6 +59,12 @@ void ConfigFileParser::LoadConfigFile() {
 	return;
 }
 
+
+/// <summary>
+/// Get requested parameters (LATENCY_WINDOW, ENABLE_INTERLEAVING)
+/// </summary>
+/// <return>If the requested parameter is found(key of the map), return the corresponding string. Else
+//it returns the string "ERROR"</return>
 std::string ConfigFileParser::getParameter(const std::string param) {
 	std::map<std::string, std::string>::iterator it;
 	it = parameters.find(param);

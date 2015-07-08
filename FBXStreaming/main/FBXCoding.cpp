@@ -13,10 +13,14 @@ p_latencyWindow(latency)
 	ConfigFileParser &parser = ConfigFileParser::getInstance();
 	std::string latentsize = parser.getParameter(LATENCY_WINDOW);
 	std::string interleave = parser.getParameter(ENABLE_INTERLEAVING);
+	std::string global = parser.getParameter(ENABLE_GLOBAL_TRANSFORMATION);
 
 	if (latentsize.compare("ERROR") != 0) {
+		p_latencyWindow = atoi(latentsize.c_str());
+	}
 
-	
+	if (interleave.compare("ERROR") != 0) {
+		std::istringstream(interleave) >> p_isInterleavingMode;
 	}
 
 }
@@ -66,7 +70,11 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 			//UI_Printf("%d has been added to the vector", keyI);
 		}
 		if (keyIvec.size() == p_latencyWindow || keyI == (keyTotal-1)) {
-			std::random_shuffle(keyIvec.begin(), keyIvec.end());
+			
+			// If Interleaving is enabled shuffle vector
+			if (p_isInterleavingMode){
+				std::random_shuffle(keyIvec.begin(), keyIvec.end());
+			}
 			for (std::vector<int>::iterator it = keyIvec.begin(); it != keyIvec.end(); ++it) {
 				//UI_Printf("now encoding key: %d", *it);
 				for (int ci = 0; ci < childCount; ci++) {

@@ -17,7 +17,7 @@ public:
 	/// <param name="tPort">Transmitter port, which server binds to, and client connects to</param>
 	/// <param name="cHostName">Nameof the host for which client will be connected to</param>
 	/// <param name="exportFileName">File where server writes information</param>
-	FBXTransmitter(FbxManager *fManager = NULL, int tPort = 27015, char *cHostName = NULL , char *exportFileName = "output.fbx");
+	FBXTransmitter(FbxManager *fManager = NULL, int tPort = 27015, char *cHostName = NULL, char *exportFileName = "output.fbx");
 
 	/// <summary>
 	/// Destructor
@@ -124,6 +124,9 @@ private:
 
 	// Nome of client for which host connects to
 	char *p_clientHostName;
+
+	// True if Global Transformation is enabled.
+	bool  p_globalTransformationMode;
 
 	PACKET p_serverbuf[(PACKET_SIZE / sizeof(PACKET)) + 1];
 

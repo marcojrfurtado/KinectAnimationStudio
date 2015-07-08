@@ -11,8 +11,9 @@
 /// <param name="exportFileName">File where server writes information</param>
 FBXTransmitter::FBXTransmitter(FbxManager *fManager, int tPort, char *cHostName, char *exportFileName) : p_sdkManager(fManager),
 p_transmitterPort(tPort),
-p_clientHostName(cHostName), 
-p_coding()
+p_clientHostName(cHostName),
+p_coding(), 
+p_globalTransformationMode(true)
 {
 	// Initialize export file name
 	p_exportFileName = _strdup(exportFileName);
@@ -23,6 +24,11 @@ p_coding()
 	// Initialize address structure
 	updateSocketAddr();
 
+	ConfigFileParser &parser = ConfigFileParser::getInstance();
+	std::string globalTransformation = parser.getParameter(ENABLE_GLOBAL_TRANSFORMATION);
+	if (globalTransformation.compare("ERROR") != 0) {
+		std::istringstream(globalTransformation) >> p_globalTransformationMode;
+	}
 }
 
 /// <summary>
@@ -132,7 +138,7 @@ void FBXTransmitter::transmit() {
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode);
 
 		// Apply unroll filter to ir
 		FbxAnimCurveFilterUnroll postProcFilter;
@@ -384,7 +390,7 @@ void FBXTransmitter::backgroundListenServer() {
 	UI_Printf("Decode has finished. %d packets were received during transmission",packetCount);
 	UI_Printf("Ready to convert data to a hierarchical skeleton.");
 
-	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *) skel->GetName());
+	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *) skel->GetName(), p_globalTransformationMode);
 
 	UI_Printf("Data has been converted.");
 	// Save Scene
@@ -658,7 +664,7 @@ void FBXTransmitter::createModelBaseFile() {
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, true);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, true);
 
 		break;
 	}
