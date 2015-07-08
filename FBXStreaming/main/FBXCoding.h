@@ -13,7 +13,7 @@ public:
 	/// </summary>
 	/// <param name="enableInterleaving">Interleave packets before sending</param>
 	/// <param name="latency">Interleaving latency window</param>
-	FBXCoding(bool enableInterleaving = true, int latency = 8);
+	FBXCoding(bool enableInterleaving = true, int latency = 10);
 
 	/// <summary>
 	/// Destructor
