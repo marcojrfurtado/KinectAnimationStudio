@@ -76,7 +76,10 @@ int APIENTRY WinMain(
 
 	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_UI));
 
-
+	// Print information about intial setup
+	UI_Printf("==== Begin - Initial Setup =====");
+	transmitter.printSetupDetails();
+	UI_Printf("==== End - Initial Setup =====");
 
 	// Main message loop:
 	while (GetMessage(&msg, NULL, 0, 0) && !gAutoQuit)
@@ -186,7 +189,6 @@ LRESULT CALLBACK WndProc(
 
 		// Pass the SDK manager to the transmitter
 		transmitter.initFBXSDKManager(gSdkManager);
-
 
 	}
 	break;

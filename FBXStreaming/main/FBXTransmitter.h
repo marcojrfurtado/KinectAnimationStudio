@@ -96,8 +96,18 @@ public:
 		p_importFileName = _strdup(newName);
 	}
 
+	/// <summary>
+	/// Creates FBX file containing a skeleton. Used to extract animation to.
+	/// </summary>
 	void createModelBaseFile();
 
+	/// <summary>
+	/// Prints details about initial configuration
+	/// </summary>
+	void printSetupDetails() {
+		UI_Printf(" Transmitter Initialization: Global Transformation mode set to %d", p_globalTransformationMode);
+		p_coding.printSetupDetails();
+	}
 private:
 	// Constant Definitions
 

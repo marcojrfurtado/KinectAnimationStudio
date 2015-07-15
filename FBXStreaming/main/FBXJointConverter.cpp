@@ -228,7 +228,7 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 	//Repeat for children
 	int childCount = cNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		animatePositionalMarkers(pLayer, kTime, mSet, cNode->GetChild(i), cTransformation);
+		animatePositionalMarkers(pLayer, kTime, mSet, cNode->GetChild(i), enableGlobalTransformation ,cTransformation);
 
 
 }
@@ -244,12 +244,8 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
 	
 	
-	FbxAMatrix childReferenceTransformation;
-
-	if (enableGlobalTransformation) {
-		// Transformation to be passed on to our children. By default, it should be our own transformaiton
-		childReferenceTransformation = parentTrans;
-	}
+	// Transformation to be passed on to our children. By default, it should be our own transformaiton
+	FbxAMatrix childReferenceTransformation = parentTrans;
 	
 
 	// Find corresponding marker
@@ -258,15 +254,21 @@ void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 	// If marker has been found, animate it
 	if (tgtMarkerNode && isAnimatable(tgtNode) ) {
 		// Find transformation for current node. Extract transformation from marker in order to compute it.
-		FbxAMatrix invParentTrans = parentTrans.Inverse();
-		FbxAMatrix markerGlobalTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
-		FbxAMatrix tgtTransformation = invParentTrans *  markerGlobalTrans;
+		FbxAMatrix markerTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
+		FbxAMatrix tgtTransformation;
+		if (enableGlobalTransformation) {
+			FbxAMatrix invParentTrans = parentTrans.Inverse();
+			tgtTransformation = invParentTrans *  markerTrans; // Marker has global trans
+		}
+		else {
+			tgtTransformation = markerTrans; // marker has local trans
+		}
 
 		// Apply transformation to node
 		applyTransformationMatrix(tgtNode, pLayer, kTime, tgtTransformation, false);
 
 		// Pass information to children
-		childReferenceTransformation = markerGlobalTrans;
+		childReferenceTransformation = markerTrans;
 	}
 
 
@@ -274,7 +276,7 @@ void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 	//Repeat for children
 	int childCount = tgtNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		animateJointsFromMarkers(pLayer, kTime, mSet, tgtNode->GetChild(i), childReferenceTransformation);
+		animateJointsFromMarkers(pLayer, kTime, mSet, tgtNode->GetChild(i), enableGlobalTransformation, childReferenceTransformation);
 }
 
 /// <summary>

@@ -12,7 +12,7 @@ public:
 	/// <param name="sNode">Skeleton root node</param>
 	/// <param name="onlyCopyTPose">Don't animate markers, only copy T-Pose information</param>
 	/// <return>Node representing marker Set</return>
-	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool gobalTransformationEnable = true, bool onlyCopyTPose = false);
+	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool globalTransformationEnable = true, bool onlyCopyTPose = false);
 
 	/// <summary>
 	/// Creates hierarchical Skeleton from absolute markers

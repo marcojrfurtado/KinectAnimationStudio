@@ -36,6 +36,14 @@ public:
 		p_sock_addr = new_addr;
 	}
 
+	/// <summary>
+	/// Prints details about initial configuration
+	/// </summary>
+	void printSetupDetails() {
+		UI_Printf(" Coder Initialization: Latency Window set to %d", p_latencyWindow);
+		UI_Printf(" Coder Initialization: Interleaving packet mode set to %d", p_isInterleavingMode);
+	}
+
 private:
 
 	// True, if we are interleaving packets
