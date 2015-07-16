@@ -28,6 +28,7 @@
 // Windows Header Files:
 // Stop Window.h from definition socks
 #define _WINSOCKAPI_ 
+#define NOMINMAX
 #include <windows.h>
 
 
@@ -46,11 +47,17 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include<sstream>
+#include <sstream>
+#include <bitset>
+
+
 
 // WIN Libraries
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+// it++ library
+#include <itpp/itcomm.h>
 
 #include <time.h> 
 

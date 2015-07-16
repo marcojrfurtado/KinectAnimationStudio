@@ -5,6 +5,8 @@
 #define LATENCY_WINDOW "Latency"
 #define ENABLE_INTERLEAVING "Interleaving"
 #define ENABLE_GLOBAL_TRANSFORMATION "Global"
+#define ENABLE_LDPC "LDPC"
+#define LDPC_OFFSET "Offset"
 
 
 class ConfigFileParser

@@ -6,14 +6,19 @@
 /// </summary>
 /// <param name="enableInterleaving">Interleave packets before sending</param>
 /// <param name="latency">Interleaving latency window</param>
-FBXCoding::FBXCoding(bool enableInterleaving, int latency) :
+FBXCoding::FBXCoding(bool enableInterleaving, int latency, bool enableLDPC, int ldpc_offset) :
 p_isInterleavingMode(enableInterleaving),
-p_latencyWindow(latency)
+p_latencyWindow(latency), 
+p_enableLDPC(enableLDPC),
+p_LDPC_offset(ldpc_offset)
 { 
 	ConfigFileParser &parser = ConfigFileParser::getInstance();
 	std::string latentsize = parser.getParameter(LATENCY_WINDOW);
 	std::string interleave = parser.getParameter(ENABLE_INTERLEAVING);
-	std::string global = parser.getParameter(ENABLE_GLOBAL_TRANSFORMATION);
+	std::string ldpc = parser.getParameter(ENABLE_LDPC);
+	std::string offset = parser.getParameter(LDPC_OFFSET);
+
+	//std::string global = parser.getParameter(ENABLE_GLOBAL_TRANSFORMATION);
 
 	if (latentsize.compare("ERROR") != 0) {
 		p_latencyWindow = atoi(latentsize.c_str());
@@ -21,6 +26,21 @@ p_latencyWindow(latency)
 
 	if (interleave.compare("ERROR") != 0) {
 		std::istringstream(interleave) >> p_isInterleavingMode;
+	}
+
+	if (ldpc.compare("ERROR") != 0) {
+		std::istringstream(ldpc) >> p_enableLDPC;
+		
+		// it++ construsts Parity Matrix
+		H.generate(104, 2, 26, "rand", "104 8");
+
+		// it++ constructs Generator Matrix;
+		G.construct(&H);
+		//C.save_code("ldpc_encode.codec");
+	}
+
+	if (offset.compare("ERROR") != 0) {
+		p_LDPC_offset = atoi(offset.c_str());
 	}
 
 }
@@ -32,10 +52,23 @@ p_latencyWindow(latency)
 FBXCoding::~FBXCoding() { }
 
 void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
-	// Maximum number of keys a package can store
-	const int Max_key_num = PACKET_SIZE / sizeof(PACKET);
+	int Max_key_num;
+	PACKET *p;
+	size_t fragmentSize;
 
-	PACKET *p = new PACKET[Max_key_num];
+	if (p_enableLDPC) {
+		// Maximum number of keys a package can store
+		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
+		fragmentSize = sizeof(PACKET_LDPC);
+		p = new PACKET_LDPC[Max_key_num];
+	}
+	else {
+		// Maximum number of keys a package can store
+		Max_key_num = PACKET_SIZE / sizeof(PACKET);
+		fragmentSize = sizeof(PACKET);
+		p = new PACKET[Max_key_num];
+	}
+
 	int pIndex = 0;
 
 	// Vector used to store key indexes
@@ -108,7 +141,7 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 
 	Sleep(100);
 	if (pIndex > 0) {
-		if (sendto(s, (const char *)p, pIndex*sizeof(PACKET), 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
+		if (sendto(s, (const char *)p, pIndex*fragmentSize, 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 		{
 			UI_Printf("failed to send with error code : %d", WSAGetLastError());
 		}
@@ -238,8 +271,17 @@ void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointM
 int FBXCoding::encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation) {
 
 	// Maximum number of keys a package can store
-	const int Max_key_num = PACKET_SIZE / sizeof(PACKET);
+	int Max_key_num;
+	int bytes_sent;
+	if (p_enableLDPC) {
+		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
+		bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
+	}
+	else {
+		Max_key_num = PACKET_SIZE / sizeof(PACKET);
+		bytes_sent = Max_key_num*sizeof(PACKET);
 
+	}
 
 	FbxAnimCurve *xCurve;
 	FbxAnimCurve *yCurve;
@@ -279,13 +321,26 @@ int FBXCoding::encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int key
 		p[pIndex].z = zCurve->KeyGet(keyIndex).GetValue();
 		p[pIndex].time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
 	}
-
+	
+	if (p_enableLDPC){
+		itpp::LDPC_Code ldpc_encode(&H, &G);
+		itpp::bvec bitsin = itpp::randb(ldpc_encode.get_nvar() - ldpc_encode.get_ncheck());
+		itpp::bvec bitsout;
+		ldpc_encode.encode(bitsin, bitsout);
+		bvec2Bitset(bitsout, (PACKET_LDPC*) p, pIndex);
+		std::string bvecStringIn = itpp::to_str(bitsin);
+		std::string bvecStringOut = itpp::to_str(bitsout);
+		UI_Printf("bitsin: %x", bvecStringIn.c_str());
+		UI_Printf("bitsout: %s", bvecStringOut.c_str());
+		UI_Printf("Parity bits: %s", ((PACKET_LDPC *) p)[pIndex].bits.to_string().c_str());
+	}
+	
 	// Increment index
 	pIndex++;
 
 	// Send data and clear the buffer
 	if (pIndex >= Max_key_num) {
-		if (sendto(s, (const char *)p, Max_key_num*sizeof(PACKET), 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
+		if (sendto(s, (const char *)p, bytes_sent, 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 		{
 			UI_Printf("failed to send with error code : %d", WSAGetLastError());
 		}
@@ -295,4 +350,10 @@ int FBXCoding::encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int key
 
 	// Return updated index
 	return pIndex;
+}
+
+void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC *p, int pIndex) {
+	for (int i = 96; i < 104; i++) {
+		p[pIndex].bits[i%8] = bin_list[i];
+	}
 }

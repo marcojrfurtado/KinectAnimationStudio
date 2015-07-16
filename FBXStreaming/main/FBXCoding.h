@@ -14,7 +14,7 @@ public:
 	/// </summary>
 	/// <param name="enableInterleaving">Interleave packets before sending</param>
 	/// <param name="latency">Interleaving latency window</param>
-	FBXCoding(bool enableInterleaving = true, int latency = 10);
+	FBXCoding(bool enableInterleaving = true, int latency = 10, bool enableLDPC = false, int ldpc_offset = 0);
 
 	/// <summary>
 	/// Destructor
@@ -52,6 +52,18 @@ private:
 	// Latency window, used for interleaving packets
 	int p_latencyWindow;
 
+	// True, if we are enabling LDPC
+	bool p_enableLDPC;
+	
+	// LDPC offset
+	int p_LDPC_offset;
+
+	// Parity Matrix
+	itpp::LDPC_Parity_Regular H;
+
+	// Generator Matrix
+	itpp::LDPC_Generator_Systematic G;
+
 	// Address used to send packets
 	struct sockaddr_in p_sock_addr;
 
@@ -67,6 +79,6 @@ private:
 	/// <return>Updated pIndex</return>
 	int encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
 
-
+	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC *p, int pIndex);
 
 };
