@@ -29,7 +29,12 @@ public:
 	/// <summary>
 	/// Decode keyframes from a certain packet
 	/// </summary>
-	void decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, PACKET *p, int keyframeNum);
+	/// <param name="lScene">FBX Scene</param>
+	/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+	/// <param name="p">Raw data received from channel</param>
+	/// <param name="numBytesRecv">Number of bytes received</param>
+	void decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, char *p, int numBytesRecv);
+
 
 	// Sets socket address used by encoder and decoder
 	void setSockAddress(struct sockaddr_in new_addr) {
@@ -45,6 +50,11 @@ public:
 		UI_Printf(" Coder Initialization: LDPC packet mode set to %d", p_enableLDPC);
 		UI_Printf(" Coder Initialization: LDPC offset set to %d", p_LDPC_offset);
 	}
+
+	/// <summary>
+	/// Chekcs whether LDPC has been enabled
+	/// </summary>
+	bool isLDPCEnabled() { return p_enableLDPC;  }
 
 private:
 	// Constant definitions
@@ -74,19 +84,66 @@ private:
 	// Address used to send packets
 	struct sockaddr_in p_sock_addr;
 
+	// Parity map, used to restore missing keyframes
+	// Relates key timestamps to their corresponding parities
+	std::map<FbxLongLong, std::bitset<N_PARITY_BIT>> p_ldpc_parity_map;
+
+	// Private methods
+
+
+	/// <summary>
+	/// Decode LDPC packet fragment
+	/// </summary>
+	/// <param name="animLayer">FBX Animation layer</param>
+	/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+	/// <param name="frag">Fragment to be decoded</param>
+	void decodeLDPCFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET_LDPC &frag);
+
+	/// <summary>
+	/// Decode packet fragment
+	/// </summary>
+	/// <param name="animLayer">FBX Animation layer</param>
+	/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+	/// <param name="frag">Fragment to be decoded</param>
+	void decodeFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET &frag);
+
 	/// <summary>
 	/// Encodes keys for curves from a given node
 	/// </summary>
+	/// <param name="keyTotal">Total number of existing keys</param>
 	/// <param name="animLayer">FBX Anim layer</param>
 	/// <param name="tgtNode">Node to have curves extracted</param>
-	/// <param name="p">Packet to be sent</param>
+	/// <param name="p">Outgoing packet buffer</param>
 	/// <param name="pIndex">Index of current keyframe</param>
 	/// <param name="s">Socket used to send packages</param>
 	/// <param name="isTranslation">Are these translation curves?</param>
 	/// <return>Updated pIndex</return>
-	int encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
+	int encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, char *p, int pIndex, SOCKET s, bool isTranslation = false);
 
-	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC *p, int pIndex);
+	/// <summary>
+	/// Encodes Common key attributes
+	/// </summary>
+	/// <param name="outP">Reference to packet that will be overwritten</param>
+	/// <param name="keyIndex">Index of current key</param>
+	/// <param name="tgtNode">FBX node to have information extracted</param>
+	/// <param name="xCurve">X curve</param>
+	/// <param name="yCurve">Y curve</param>
+	/// <param name="zCurve">Z curve</param>
+	/// <param name="isTranslation">Are these translation curves?</param>
+	void encodeCommonKeyAttributes(PACKET &outP, int keyIndex, FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation = false);
+
+	/// <summary>
+	/// Encodes LDPC parity, storing it in a PACKET fragment
+	/// </summary>
+	/// <param name="keyTotal">Maximum number of keys</param>
+	/// <param name="outP">Output packet</param>
+	/// <param name="xCurve">X curve</param>
+	/// <param name="yCurve">Y curve</param>
+	/// <param name="zCurve">Z curve</param>
+	/// <param name="keyIndex">Index of current key</param>
+	void encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex);
+
+	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p);
 
 	itpp::bvec tobvec(float f);
 

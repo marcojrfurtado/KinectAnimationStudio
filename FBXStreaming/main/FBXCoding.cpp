@@ -66,20 +66,20 @@ FBXCoding::~FBXCoding() { }
 
 void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
 	int Max_key_num;
-	PACKET *p;
 	size_t fragmentSize;
+	char *out_buf;
 
 	if (p_enableLDPC) {
 		// Maximum number of keys a package can store
 		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
 		fragmentSize = sizeof(PACKET_LDPC);
-		p = new PACKET_LDPC[Max_key_num];
+		out_buf = (char *) new PACKET_LDPC[Max_key_num];
 	}
 	else {
 		// Maximum number of keys a package can store
 		Max_key_num = PACKET_SIZE / sizeof(PACKET);
 		fragmentSize = sizeof(PACKET);
-		p = new PACKET[Max_key_num];
+		out_buf = (char *) new PACKET[Max_key_num];
 	}
 
 	int pIndex = 0;
@@ -127,13 +127,13 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 					int oldPIndex = pIndex;
 
 					// Encode rotation curves
-					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, p, pIndex, s, false);
+					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, out_buf, pIndex, s, false);
 					if (oldPIndex == (Max_key_num - 1) && pIndex == 0) // packet has just been sent out
 						packetSentCount++;
 
 					oldPIndex = pIndex;
 					// Encode translation curves - if they exist
-					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, p, pIndex, s, true);
+					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, out_buf, pIndex, s, true);
 					if (oldPIndex == (Max_key_num - 1) && pIndex == 0)
 						packetSentCount++;
 
@@ -154,7 +154,7 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 
 	Sleep(100);
 	if (pIndex > 0) {
-		if (sendto(s, (const char *)p, pIndex*fragmentSize, 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
+		if (sendto(s,  out_buf, pIndex*fragmentSize, 0, (struct sockaddr *) &p_sock_addr, sizeof(p_sock_addr)) == SOCKET_ERROR)
 		{
 			UI_Printf("failed to send with error code : %d", WSAGetLastError());
 		}
@@ -170,7 +170,7 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 
 	UI_Printf("Encoding has finished. %d packages were sent.", packetSentCount);
 
-	delete p;
+	delete out_buf;
 
 	// Destroy scene
 	lScene->Destroy();
@@ -186,84 +186,126 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 /// <summary>
 /// Decode keyframes from a certain packet
 /// </summary>
-void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, PACKET *p, int keyframeNum) {
+/// <param name="lScene">FBX Scene</param>
+/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+/// <param name="p">Raw data received from channel</param>
+/// <param name="numBytesRecv">Number of bytes received</param>
+void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, char *p, int numBytesRecv) {
 
 
 	// Retrieve animationlayer
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
 
+	// Calculate number of keyframes within packet
+	int num_key_received;
+	if (!isLDPCEnabled()) {
+		num_key_received = numBytesRecv / sizeof(PACKET);
+	}
+	else {
+		num_key_received = numBytesRecv / sizeof(PACKET_LDPC);
+	}
+
 
 
 	// Iterate on incoming packets
-	for (int i = 0; i < keyframeNum; i++) {
-
-		auto it = jointMap.find(p[i].joint_id);
-		if (it == jointMap.end()){
-			UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", p[i].joint_id);
-			continue;
-		}
-
-		FbxNode *tgtMarker = it->second;
-
-		FbxAnimCurve *curveX, *curveY, *curveZ;
-		FbxAnimCurveDef::EInterpolationType interpType;
-
-		// Check what type of curve we received
-		if (p[i].joint_id == TRANSLATION_CUSTOM_ID) {
-			curveX = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
-			curveY = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
-			curveZ = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
-			interpType = FbxAnimCurveDef::eInterpolationLinear;
+	for (int i = 0; i < num_key_received; i++) {
+		if (!isLDPCEnabled()) {
+			decodeFragment(animLayer, jointMap, ((PACKET *)p)[i]);
 		}
 		else {
-			curveX = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
-			curveY = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
-			curveZ = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
-			interpType = FbxAnimCurveDef::eInterpolationCubic;
+			decodeLDPCFragment(animLayer, jointMap, ((PACKET_LDPC *)p)[i]);
 		}
+	}
 
 
-		FbxTime kTime;
-		kTime.SetMilliSeconds(p[i].time);
+}
 
-		if (curveX) {
-			curveX->KeyModifyBegin();
+/// <summary>
+/// Decode LDPC packet fragment
+/// </summary>
+/// <param name="animLayer">FBX Animation layer</param>
+/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+/// <param name="frag">Fragment to be decoded</param>
+void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET_LDPC &frag) {
+	// Decode parity part
+	p_ldpc_parity_map[frag.time] = frag.bits;
 
-			// Start adding key
-			// TODO: Speed up this operation using index
-			int keyIndex = curveX->KeyInsert(kTime);
-			curveX->KeySetValue(keyIndex, p[i].x);
-			curveX->KeySetInterpolation(keyIndex, interpType);
+	// Every LDPC_PACKET is also a PACKET, so we need to decode the rest of it
+	decodeFragment(animLayer, jointMap, frag);
+}
 
-			curveX->KeyModifyEnd();
-		}
+/// <summary>
+/// Decode packet fragment
+/// </summary>
+/// <param name="animLayer">FBX Animation layer</param>
+/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+/// <param name="frag">Fragment to be decoded</param>
+void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET &frag){
 
-		if (curveY) {
-			curveY->KeyModifyBegin();
+	auto it = jointMap.find(frag.joint_id);
+	if (it == jointMap.end()){
+		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag.joint_id);
+		return;
+	}
 
-			// Start adding key
-			// TODO: Speed up this operation using index
-			int keyIndex = curveY->KeyInsert(kTime);
-			curveY->KeySetValue(keyIndex, p[i].y);
-			curveY->KeySetInterpolation(keyIndex, interpType);
+	FbxNode *tgtMarker = it->second;
 
-			curveY->KeyModifyEnd();
-		}
+	FbxAnimCurve *curveX, *curveY, *curveZ;
+	FbxAnimCurveDef::EInterpolationType interpType;
 
-		if (curveZ) {
-			curveZ->KeyModifyBegin();
-
-			// Start adding key
-			// TODO: Speed up this operation using index
-			int keyIndex = curveZ->KeyInsert(kTime);
-			curveZ->KeySetValue(keyIndex, p[i].z);
-			curveZ->KeySetInterpolation(keyIndex, interpType);
-
-			curveZ->KeyModifyEnd();
-		}
+	// Check what type of curve we received
+	if (frag.joint_id == TRANSLATION_CUSTOM_ID) {
+		curveX = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+		curveY = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+		curveZ = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+		interpType = FbxAnimCurveDef::eInterpolationLinear;
+	}
+	else {
+		curveX = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+		curveY = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+		curveZ = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+		interpType = FbxAnimCurveDef::eInterpolationCubic;
+	}
 
 
+	FbxTime kTime;
+	kTime.SetMilliSeconds(frag.time);
+
+	if (curveX) {
+		curveX->KeyModifyBegin();
+
+		// Start adding key
+		// TODO: Speed up this operation using index
+		int keyIndex = curveX->KeyInsert(kTime);
+		curveX->KeySetValue(keyIndex, frag.x);
+		curveX->KeySetInterpolation(keyIndex, interpType);
+
+		curveX->KeyModifyEnd();
+	}
+
+	if (curveY) {
+		curveY->KeyModifyBegin();
+
+		// Start adding key
+		// TODO: Speed up this operation using index
+		int keyIndex = curveY->KeyInsert(kTime);
+		curveY->KeySetValue(keyIndex, frag.y);
+		curveY->KeySetInterpolation(keyIndex, interpType);
+
+		curveY->KeyModifyEnd();
+	}
+
+	if (curveZ) {
+		curveZ->KeyModifyBegin();
+
+		// Start adding key
+		// TODO: Speed up this operation using index
+		int keyIndex = curveZ->KeyInsert(kTime);
+		curveZ->KeySetValue(keyIndex, frag.z);
+		curveZ->KeySetInterpolation(keyIndex, interpType);
+
+		curveZ->KeyModifyEnd();
 	}
 
 
@@ -274,28 +316,15 @@ void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointM
 /// </summary>
 /// <param name="animLayer">FBX Anim layer</param>
 /// <param name="tgtNode">Node to have curves extracted</param>
-/// <param name="keyIndex">Index of </param>
+/// <param name="keyIndex">Index of current key</param>
 /// <param name="zCurve">Z curve</param>
-/// <param name="p">Packet to be sent</param>
+/// <param name="p">Outgoing packet buffer</param>
 /// <param name="pIndex">Index of current keyframe</param>
 /// <param name="s">Socket used to send packages</param>
 /// <param name="isTranslation">Are these translation curves?</param>
 /// <return>Updated pIndex</return>
-int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation) {
+int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, char *p, int pIndex, SOCKET s, bool isTranslation) {
 
-	// Maximum number of keys a package can store
-	int Max_key_num;
-	int bytes_sent;
-
-	if (p_enableLDPC) {
-		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
-		bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
-	}
-	else {
-		Max_key_num = PACKET_SIZE / sizeof(PACKET);
-		bytes_sent = Max_key_num*sizeof(PACKET);
-
-	}
 
 	FbxAnimCurve *xCurve;
 	FbxAnimCurve *yCurve;
@@ -317,59 +346,25 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 		return pIndex;
 
 
-	if (isTranslation)
-		p[pIndex].joint_id = TRANSLATION_CUSTOM_ID;
-	else
-		p[pIndex].joint_id = getCustomIdProperty(tgtNode);
+	// Maximum number of keys a package can store
+	int Max_key_num;
+	int bytes_sent;
+	PACKET *p_in_pIndex;
 
-	if (xCurve) {
-		p[pIndex].x = xCurve->KeyGet(keyIndex).GetValue();
-		p[pIndex].time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
+	if (p_enableLDPC) {
+		PACKET_LDPC &p_at_pos = ((PACKET_LDPC *)p)[pIndex];
+		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
+		bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
+
+		encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
+		encodeLDPCAttributes(keyTotal, p_at_pos , xCurve, yCurve, zCurve, keyIndex);
 	}
-	if (yCurve) {
-		p[pIndex].y = yCurve->KeyGet(keyIndex).GetValue();
-		p[pIndex].time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
+	else {
+		PACKET &p_at_pos = ((PACKET *)p)[pIndex];
+		Max_key_num = PACKET_SIZE / sizeof(PACKET);
+		bytes_sent = Max_key_num*sizeof(PACKET);
 
-	}
-	if (zCurve) {
-		p[pIndex].z = zCurve->KeyGet(keyIndex).GetValue();
-		p[pIndex].time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
-	}
-	
-	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
-	if (p_enableLDPC){
-		float x, y, z;
-		itpp::LDPC_Code ldpc_encode(&H, &G);
-
-		int keyOffset = keyIndex + p_LDPC_offset;
-		if (keyOffset <= keyTotal) {
-			UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
-			x = xCurve->KeyGet(keyOffset).GetValue();
-			y = yCurve->KeyGet(keyOffset).GetValue();
-			z = zCurve->KeyGet(keyOffset).GetValue();
-
-			itpp::bvec bitsin = tobvec(x);
-			bitsin = concat(bitsin, tobvec(y));
-			bitsin = concat(bitsin, tobvec(z));
-
-			itpp::bvec bitsout;
-			ldpc_encode.encode(bitsin, bitsout);
-			bvec2Bitset(bitsout, (PACKET_LDPC*) p, pIndex);
-			
-			//std::string bvecStringIn = itpp::to_str(bitsin);
-			//UI_Printf("bitsin: %s", bvecStringIn.c_str());
-		}
-
-		// Printing the bits (checking to see if extracting the parity bits)
-		/*
-		std::string bvecStringIn = itpp::to_str(bitsin);
-		std::string bvecStringOut = itpp::to_str(bitsout);
-
-		UI_Printf("bitsin: %x", bvecStringIn.c_str());
-		UI_Printf("bitsout: %s", bvecStringOut.c_str());
-		UI_Printf("Parity bits: %s", ((PACKET_LDPC *) p)[pIndex].bits.to_string().c_str());
-		*/
-		
+		encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
 	}
 	
 	// Increment index
@@ -389,9 +384,81 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 	return pIndex;
 }
 
-void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC *p, int pIndex) {
+
+/// <summary>
+/// Encodes Common key attributes
+/// </summary>
+/// <param name="animLayer">FBX Anim layer</param>
+/// <param name="tgtNode">Node to have curves extracted</param>
+/// <param name="p">Outgoing packet buffer</param>
+/// <param name="pIndex">Index of current keyframe</param>
+/// <param name="s">Socket used to send packages</param>
+/// <param name="isTranslation">Are these translation curves?</param>
+/// <return>Updated pIndex</return>
+void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, int keyIndex,  FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation) {
+	if (isTranslation)
+		outP.joint_id = TRANSLATION_CUSTOM_ID;
+	else
+		outP.joint_id = getCustomIdProperty(tgtNode);
+
+	if (xCurve) {
+		outP.x = xCurve->KeyGet(keyIndex).GetValue();
+		outP.time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
+	}
+	if (yCurve) {
+		outP.y = yCurve->KeyGet(keyIndex).GetValue();
+		outP.time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
+
+	}
+	if (zCurve) {
+		outP.z = zCurve->KeyGet(keyIndex).GetValue();
+		outP.time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
+	}
+
+}
+
+/// <summary>
+/// Encodes LDPC parity
+/// </summary>
+void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex) {
+	float x, y, z;
+	itpp::LDPC_Code ldpc_encode(&H, &G);
+	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
+
+
+
+	int keyOffset = keyIndex + p_LDPC_offset;
+	if (keyOffset < keyTotal) {
+		//	UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
+		x = xCurve->KeyGet(keyOffset).GetValue();
+		y = yCurve->KeyGet(keyOffset).GetValue();
+		z = zCurve->KeyGet(keyOffset).GetValue();
+
+		itpp::bvec bitsin = tobvec(x);
+		bitsin = concat(bitsin, tobvec(y));
+		bitsin = concat(bitsin, tobvec(z));
+
+		itpp::bvec bitsout;
+		ldpc_encode.encode(bitsin, bitsout);
+		bvec2Bitset(bitsout, outP);
+
+		//std::string bvecStringIn = itpp::to_str(bitsin);
+		//UI_Printf("bitsin: %s", bvecStringIn.c_str());
+	}
+	// Printing the bits (checking to see if extracting the parity bits)
+	/*
+	std::string bvecStringIn = itpp::to_str(bitsin);
+	std::string bvecStringOut = itpp::to_str(bitsout);
+
+	UI_Printf("bitsin: %x", bvecStringIn.c_str());
+	UI_Printf("bitsout: %s", bvecStringOut.c_str());
+	UI_Printf("Parity bits: %s", ((PACKET_LDPC *) p)[pIndex].bits.to_string().c_str());
+	*/
+}
+
+void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p) {
 	for (int i = 96; i < 104; i++) {
-		p[pIndex].bits[i%8] = bin_list[i];
+		p.bits[i%8] = bin_list[i];
 	}
 }
 

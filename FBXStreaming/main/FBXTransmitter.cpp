@@ -260,9 +260,10 @@ void FBXTransmitter::backgroundListenServer() {
 	SOCKET s;
 	struct sockaddr_in server;
 	struct sockaddr  s_add_incoming;
-	int recv_byte_len, s_add_incoming_len = sizeof(s_add_incoming);
-	const int buf_len = PACKET_SIZE / sizeof(PACKET);
-	PACKET recv_intermediate_buf[buf_len+1];
+	int max_recv_byte_len = PACKET_SIZE, recv_byte_len, s_add_incoming_len = sizeof(s_add_incoming);
+	int buf_len = PACKET_SIZE+1;
+	char *recv_intermediate_buf = new char[buf_len];
+
 
 	std::mutex *bufferMutex = new std::mutex;
 	std::mutex *decodeMutex = new std::mutex;
@@ -308,7 +309,7 @@ void FBXTransmitter::backgroundListenServer() {
 
 
 		//try to receive some data, this is a blocking call
-		memset(recv_intermediate_buf, '\0', buf_len+1);
+		memset(recv_intermediate_buf, '\0', buf_len);
 
 		// Only start checking timeout once first packet has been decoded
 		if (packetCount > 0) {
@@ -327,7 +328,7 @@ void FBXTransmitter::backgroundListenServer() {
 		}
 
 		// Receive packet
-		if ((recv_byte_len = recvfrom(s, (char *)recv_intermediate_buf, buf_len * sizeof(PACKET), 0, (struct sockaddr *) &s_add_incoming, &s_add_incoming_len)) == SOCKET_ERROR)
+		if ((recv_byte_len = recvfrom(s, recv_intermediate_buf, max_recv_byte_len, 0, (struct sockaddr *) &s_add_incoming, &s_add_incoming_len)) == SOCKET_ERROR)
 		{
 			UI_Printf("recvfrom() failed with error code : %d", WSAGetLastError());
 			lScene->Destroy();
@@ -357,10 +358,8 @@ void FBXTransmitter::backgroundListenServer() {
 		futures.push_back(
 			std::async(std::launch::async,
 				[recv_byte_len, lScene, decodeMap, bufferMutex, buf_len, decodeMutex, this] {
-				// Calculate number of keyframes within packet
-				const int num_key_received = recv_byte_len / sizeof(PACKET);
-				PACKET *decodeBuf = new PACKET[buf_len+1];
-			
+
+				char *decodeBuf = new char[recv_byte_len+1];
 				{
 					std::unique_lock<std::mutex> lock(*bufferMutex);
 					memcpy(decodeBuf, p_serverbuf, recv_byte_len);
@@ -369,7 +368,7 @@ void FBXTransmitter::backgroundListenServer() {
 				// Decode incoming packet
 				{
 					std::unique_lock<std::mutex> lock(*decodeMutex);
-					p_coding.decodePacket(lScene, decodeMap, decodeBuf, num_key_received);
+					p_coding.decodePacket(lScene, decodeMap, decodeBuf, recv_byte_len);
 				}
 				delete decodeBuf;
 				return true;
@@ -386,6 +385,9 @@ void FBXTransmitter::backgroundListenServer() {
 	
 	delete bufferMutex;
 	delete decodeMutex;
+
+	// Free buffer
+	delete recv_intermediate_buf;
 
 	UI_Printf("Decode has finished. %d packets were received during transmission",packetCount);
 	UI_Printf("Ready to convert data to a hierarchical skeleton.");
