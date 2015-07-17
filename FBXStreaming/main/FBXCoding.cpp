@@ -30,13 +30,26 @@ p_LDPC_offset(ldpc_offset)
 
 	if (ldpc.compare("ERROR") != 0) {
 		std::istringstream(ldpc) >> p_enableLDPC;
-		
-		// it++ construsts Parity Matrix
-		H.generate(104, 2, 26, "rand", "104 8");
 
-		// it++ constructs Generator Matrix;
-		G.construct(&H);
-		//C.save_code("ldpc_encode.codec");
+		if (p_enableLDPC) {
+			char parityPath[512];
+			GetLocalFile(c_defaultParityFileName, parityPath, 512);
+			
+			// Check if file exists
+			if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(parityPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
+				// If it does not exist, let us generate parity
+				// it++ construsts Parity Matrix
+				H.generate(N_DATA_BIT + N_PARITY_BIT, 1, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
+				H.save_alist(parityPath);
+			}
+			else {
+				H.load_alist(parityPath);
+			}
+
+			// it++ constructs Generator Matrix;
+			G.construct(&H);
+			
+		}
 	}
 
 	if (offset.compare("ERROR") != 0) {
@@ -330,9 +343,6 @@ int FBXCoding::encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int key
 		bvec2Bitset(bitsout, (PACKET_LDPC*) p, pIndex);
 		std::string bvecStringIn = itpp::to_str(bitsin);
 		std::string bvecStringOut = itpp::to_str(bitsout);
-		UI_Printf("bitsin: %x", bvecStringIn.c_str());
-		UI_Printf("bitsout: %s", bvecStringOut.c_str());
-		UI_Printf("Parity bits: %s", ((PACKET_LDPC *) p)[pIndex].bits.to_string().c_str());
 	}
 	
 	// Increment index

@@ -45,6 +45,11 @@ public:
 	}
 
 private:
+	// Constant definitions
+	const char *c_defaultParityFileName = "default_H.alist";
+
+
+	// Private attributes
 
 	// True, if we are interleaving packets
 	bool  p_isInterleavingMode;
