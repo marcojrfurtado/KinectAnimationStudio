@@ -193,3 +193,16 @@ bool ExtExist(
 
 	return true;
 }
+
+/// <summary>
+/// Returns path to a file located at the executable folder
+/// </summary>
+/// <param name="in_fileName">File name to be located in the local directory</param>
+/// <param name="out_Path">Output path</param>
+/// <param name="out_Size">Output path size</param>
+void GetLocalFile(const char *in_fileName, char *out_Path, size_t out_Size) {
+	char *p;
+	GetModuleFileName(NULL, out_Path, out_Size);
+	p = strrchr(out_Path, '\\');
+	strcpy_s(p + 1, strlen(in_fileName) + 1, in_fileName);
+}

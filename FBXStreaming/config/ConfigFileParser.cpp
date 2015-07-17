@@ -7,13 +7,13 @@
 void ConfigFileParser::LoadConfigFile() {
 
 	// create a file-reading object
-	std::ifstream configFile;
 	char Path[512];
-	char *p;
-	GetModuleFileName(NULL, Path, 512);
-	p = strrchr(Path, '\\');
-	strcpy_s(p + 1, strlen(p) + 1, "config.txt");
-	configFile.open(Path);
+	GetLocalFile("config.txt", Path, 512);
+	std::ifstream configFile(Path);
+	
+	// Unable to open config file
+	if (!configFile.is_open())
+		return;
 
 	std::string line;
 	while (std::getline(configFile, line))
@@ -25,37 +25,10 @@ void ConfigFileParser::LoadConfigFile() {
 		// process pair (a,b)
 		parameters[a] = b;
 	}
-	
-
-	// Unable to store text file properly to map
-	/*
-	char key [100];
-	char keyValue[100];
-	FILE *configFile;
-	char Path[512];
-	char *p;
-	GetModuleFileName(NULL, Path, 512);
-	p = strrchr(Path, '\\');
-	strcpy_s(p + 1, strlen(p) + 1, "config.txt");
-	errno_t fResults = fopen_s(&configFile, Path, "r");
-
-	//read file 
-	if (fResults != 0)
-	{
-		return;
-	}
-	
-	while (fscanf_s(configFile, " %s %[^\n] ", key, keyValue) == 2) {
-		parameters[key] = keyValue;
-	}
 
 
-
-	// TODO: Add enable absolute markers parameter later
-	//parameters["MarkersEnable"] = ;
-
-	fclose(configFile);
-	*/
+	// Close file after reading it
+	configFile.close();
 	return;
 }
 
