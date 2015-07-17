@@ -114,13 +114,13 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 					int oldPIndex = pIndex;
 
 					// Encode rotation curves
-					pIndex = encodeKeyFrame(animLayer, markerSet->GetChild(ci), *it, p, pIndex, s, false);
+					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, p, pIndex, s, false);
 					if (oldPIndex == (Max_key_num - 1) && pIndex == 0) // packet has just been sent out
 						packetSentCount++;
 
 					oldPIndex = pIndex;
 					// Encode translation curves - if they exist
-					pIndex = encodeKeyFrame(animLayer, markerSet->GetChild(ci), *it, p, pIndex, s, true);
+					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, p, pIndex, s, true);
 					if (oldPIndex == (Max_key_num - 1) && pIndex == 0)
 						packetSentCount++;
 
@@ -268,11 +268,12 @@ void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointM
 /// <param name="s">Socket used to send packages</param>
 /// <param name="isTranslation">Are these translation curves?</param>
 /// <return>Updated pIndex</return>
-int FBXCoding::encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation) {
+int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation) {
 
 	// Maximum number of keys a package can store
 	int Max_key_num;
 	int bytes_sent;
+
 	if (p_enableLDPC) {
 		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
 		bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
@@ -322,17 +323,39 @@ int FBXCoding::encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int key
 		p[pIndex].time = zCurve->KeyGet(keyIndex).GetTime().GetMilliSeconds();
 	}
 	
+	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
 	if (p_enableLDPC){
+		float x, y, z;
 		itpp::LDPC_Code ldpc_encode(&H, &G);
-		itpp::bvec bitsin = itpp::randb(ldpc_encode.get_nvar() - ldpc_encode.get_ncheck());
-		itpp::bvec bitsout;
-		ldpc_encode.encode(bitsin, bitsout);
-		bvec2Bitset(bitsout, (PACKET_LDPC*) p, pIndex);
+
+		int keyOffset = keyIndex + p_LDPC_offset;
+		if (keyOffset <= keyTotal) {
+			UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
+			x = xCurve->KeyGet(keyOffset).GetValue();
+			y = yCurve->KeyGet(keyOffset).GetValue();
+			z = zCurve->KeyGet(keyOffset).GetValue();
+
+			itpp::bvec bitsin = tobvec(x);
+			bitsin = concat(bitsin, tobvec(y));
+			bitsin = concat(bitsin, tobvec(z));
+
+			itpp::bvec bitsout;
+			ldpc_encode.encode(bitsin, bitsout);
+			bvec2Bitset(bitsout, (PACKET_LDPC*) p, pIndex);
+			
+			//std::string bvecStringIn = itpp::to_str(bitsin);
+			//UI_Printf("bitsin: %s", bvecStringIn.c_str());
+		}
+
+		// Printing the bits (checking to see if extracting the parity bits)
+		/*
 		std::string bvecStringIn = itpp::to_str(bitsin);
 		std::string bvecStringOut = itpp::to_str(bitsout);
 		UI_Printf("bitsin: %x", bvecStringIn.c_str());
 		UI_Printf("bitsout: %s", bvecStringOut.c_str());
 		UI_Printf("Parity bits: %s", ((PACKET_LDPC *) p)[pIndex].bits.to_string().c_str());
+		*/
+		
 	}
 	
 	// Increment index
@@ -356,4 +379,25 @@ void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC *p, int pIndex) {
 	for (int i = 96; i < 104; i++) {
 		p[pIndex].bits[i%8] = bin_list[i];
 	}
+}
+
+itpp::bvec FBXCoding::tobvec(float f) {
+	union
+	{
+		float input;   // assumes sizeof(float) == sizeof(int)
+		int   output;
+	}    data;
+
+	data.input = f;
+
+	std::bitset<sizeof(float) * CHAR_BIT>   result(data.output);
+
+	itpp::bvec resultBvec;
+	resultBvec.set_length(sizeof(float) * CHAR_BIT);
+
+	for (int i = 0; i < resultBvec.length(); i++) {
+		resultBvec[i] = result[i];
+	}
+
+	return resultBvec;
 }

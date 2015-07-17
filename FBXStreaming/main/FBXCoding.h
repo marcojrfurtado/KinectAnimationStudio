@@ -42,6 +42,8 @@ public:
 	void printSetupDetails() {
 		UI_Printf(" Coder Initialization: Latency Window set to %d", p_latencyWindow);
 		UI_Printf(" Coder Initialization: Interleaving packet mode set to %d", p_isInterleavingMode);
+		UI_Printf(" Coder Initialization: LDPC packet mode set to %d", p_enableLDPC);
+		UI_Printf(" Coder Initialization: LDPC offset set to %d", p_LDPC_offset);
 	}
 
 private:
@@ -77,8 +79,10 @@ private:
 	/// <param name="s">Socket used to send packages</param>
 	/// <param name="isTranslation">Are these translation curves?</param>
 	/// <return>Updated pIndex</return>
-	int encodeKeyFrame(FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
+	int encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, PACKET *p, int pIndex, SOCKET s, bool isTranslation = false);
 
 	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC *p, int pIndex);
+
+	itpp::bvec tobvec(float f);
 
 };

@@ -3,7 +3,7 @@
 #include "../common/stdafx.h"
 
 #define PACKET_SIZE 512
-#define N_PARITY_BIT 8
+#define N_PARITY_BIT 16
 
 // Since we only have one translation curve, it can be treated in a special way
 #define TRANSLATION_CUSTOM_ID -1
