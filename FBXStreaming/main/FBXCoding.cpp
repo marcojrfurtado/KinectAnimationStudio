@@ -64,6 +64,25 @@ p_LDPC_offset(ldpc_offset)
 /// </summary>
 FBXCoding::~FBXCoding() { }
 
+
+/// <summary>
+/// Creates a map the relates node pointsers and their IDs
+/// </summary>
+void FBXCoding::initializeJointIdMap(FbxNode *parentNode) {
+
+	int childCount = parentNode->GetChildCount();
+
+	for (int i = 0; i < childCount; i++) {
+		FbxNode* childI = parentNode->GetChild(i);
+		p_jointMap[getCustomIdProperty(childI)] = childI;
+
+		// Check if child has any translation curve
+		if (childI->LclTranslation.IsAnimated())
+			p_jointMap[TRANSLATION_CUSTOM_ID] = childI;
+	}
+
+}
+
 void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
 	int Max_key_num;
 	size_t fragmentSize;
@@ -187,10 +206,9 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 /// Decode keyframes from a certain packet
 /// </summary>
 /// <param name="lScene">FBX Scene</param>
-/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 /// <param name="p">Raw data received from channel</param>
 /// <param name="numBytesRecv">Number of bytes received</param>
-void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, char *p, int numBytesRecv) {
+void FBXCoding::decodePacket(FbxScene *lScene, char *p, int numBytesRecv) {
 
 
 	// Retrieve animationlayer
@@ -211,10 +229,10 @@ void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointM
 	// Iterate on incoming packets
 	for (int i = 0; i < num_key_received; i++) {
 		if (!isLDPCEnabled()) {
-			decodeFragment(animLayer, jointMap, ((PACKET *)p)[i]);
+			decodeFragment(animLayer, ((PACKET *)p)[i]);
 		}
 		else {
-			decodeLDPCFragment(animLayer, jointMap, ((PACKET_LDPC *)p)[i]);
+			decodeLDPCFragment(animLayer, ((PACKET_LDPC *)p)[i]);
 		}
 	}
 
@@ -227,12 +245,12 @@ void FBXCoding::decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointM
 /// <param name="animLayer">FBX Animation layer</param>
 /// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 /// <param name="frag">Fragment to be decoded</param>
-void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET_LDPC &frag) {
+void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) {
 	// Decode parity part
-	p_ldpc_parity_map[frag.time] = frag.bits;
+	p_ldpc_parity_map[std::pair<short,FbxLongLong>(frag.joint_id,frag.time)] = frag.bits;
 
 	// Every LDPC_PACKET is also a PACKET, so we need to decode the rest of it
-	decodeFragment(animLayer, jointMap, frag);
+	decodeFragment(animLayer, frag);
 }
 
 /// <summary>
@@ -241,10 +259,10 @@ void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer, std::map<short, FbxN
 /// <param name="animLayer">FBX Animation layer</param>
 /// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 /// <param name="frag">Fragment to be decoded</param>
-void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET &frag){
+void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, PACKET &frag){
 
-	auto it = jointMap.find(frag.joint_id);
-	if (it == jointMap.end()){
+	auto it = p_jointMap.find(frag.joint_id);
+	if (it == p_jointMap.end()){
 		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag.joint_id);
 		return;
 	}
@@ -481,4 +499,27 @@ itpp::bvec FBXCoding::tobvec(float f) {
 	}
 
 	return resultBvec;
+}
+
+/// <summary>
+/// Recovers missing information in the animation by using LDPC parity data
+/// </summary>
+void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
+
+
+	if (!isLDPCEnabled())
+		return;
+
+	for (auto &it : p_ldpc_parity_map) {
+
+		auto &key_pair = it.first;
+		auto &value_parity = it.second;
+
+		auto &node_it = p_jointMap.find(key_pair.first);
+		if (node_it == p_jointMap.end())
+			continue;
+
+		FbxNode *tgtNode = node_it->second;
+	}
+
 }

@@ -3,6 +3,7 @@
 #include "../common/stdafx.h"
 #include "keyFramePackets.h"
 #include "../config/ConfigFileParser.h"
+#include "FBXJointConverter.h"
 
 
 class FBXCoding {
@@ -22,6 +23,11 @@ public:
 	~FBXCoding();
 
 	/// <summary>
+	/// Creates a map the relates node pointsers and their IDs
+	/// </summary>
+	void initializeJointIdMap(FbxNode *parentNode);
+
+	/// <summary>
 	/// Encode keyframes from markers
 	/// </summary>
 	void encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s);
@@ -30,10 +36,10 @@ public:
 	/// Decode keyframes from a certain packet
 	/// </summary>
 	/// <param name="lScene">FBX Scene</param>
-	/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
+	/// <param name="jointMap"></param>
 	/// <param name="p">Raw data received from channel</param>
 	/// <param name="numBytesRecv">Number of bytes received</param>
-	void decodePacket(FbxScene *lScene, std::map<short, FbxNode *> jointMap, char *p, int numBytesRecv);
+	void decodePacket(FbxScene *lScene, char *p, int numBytesRecv);
 
 
 	// Sets socket address used by encoder and decoder
@@ -52,6 +58,11 @@ public:
 	}
 
 	/// <summary>
+	/// Recovers missing information in the animation by using LDPC parity data
+	/// </summary>
+	void startLDPCRecovery(FbxScene *scene);
+
+	/// <summary>
 	/// Chekcs whether LDPC has been enabled
 	/// </summary>
 	bool isLDPCEnabled() { return p_enableLDPC;  }
@@ -62,6 +73,11 @@ private:
 
 
 	// Private attributes
+
+
+	//Map of joints and its corresponding identifiers
+	// Used to speed up decoding
+	std::map<short, FbxNode*> p_jointMap;
 
 	// True, if we are interleaving packets
 	bool  p_isInterleavingMode;
@@ -86,7 +102,7 @@ private:
 
 	// Parity map, used to restore missing keyframes
 	// Relates key timestamps to their corresponding parities
-	std::map<FbxLongLong, std::bitset<N_PARITY_BIT>> p_ldpc_parity_map;
+	std::map<std::pair<short,FbxLongLong>, std::bitset<N_PARITY_BIT>> p_ldpc_parity_map;
 
 	// Private methods
 
@@ -95,17 +111,15 @@ private:
 	/// Decode LDPC packet fragment
 	/// </summary>
 	/// <param name="animLayer">FBX Animation layer</param>
-	/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 	/// <param name="frag">Fragment to be decoded</param>
-	void decodeLDPCFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET_LDPC &frag);
+	void decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag);
 
 	/// <summary>
 	/// Decode packet fragment
 	/// </summary>
 	/// <param name="animLayer">FBX Animation layer</param>
-	/// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 	/// <param name="frag">Fragment to be decoded</param>
-	void decodeFragment(FbxAnimLayer *animLayer, std::map<short, FbxNode *> jointMap, PACKET &frag);
+	void decodeFragment(FbxAnimLayer *animLayer,  PACKET &frag);
 
 	/// <summary>
 	/// Encodes keys for curves from a given node

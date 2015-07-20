@@ -172,11 +172,6 @@ private:
 	void updateSocketAddr();
 
 	/// <summary>
-	/// Creates a map the relates node pointsers and their IDs
-	/// </summary>
-	void initializeJointIdMap(FbxNode *parentNode, std::map<short, FbxNode *> &idMap);
-
-	/// <summary>
 	/// Starts server as a background thread
 	/// </summary>
 	void backgroundListenServer();

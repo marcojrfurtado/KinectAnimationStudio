@@ -253,8 +253,8 @@ void FBXTransmitter::backgroundListenServer() {
 		return;
 	}
 
-	std::map<short, FbxNode *> decodeMap;
-	initializeJointIdMap(set, decodeMap);
+	// Initialize decoding map
+	p_coding.initializeJointIdMap(set);
 
 	// UDP Server
 	SOCKET s;
@@ -357,7 +357,7 @@ void FBXTransmitter::backgroundListenServer() {
 		//auto task = 
 		futures.push_back(
 			std::async(std::launch::async,
-				[recv_byte_len, lScene, decodeMap, bufferMutex, buf_len, decodeMutex, this] {
+				[recv_byte_len, lScene, bufferMutex, buf_len, decodeMutex, this] {
 
 				char *decodeBuf = new char[recv_byte_len+1];
 				{
@@ -368,7 +368,7 @@ void FBXTransmitter::backgroundListenServer() {
 				// Decode incoming packet
 				{
 					std::unique_lock<std::mutex> lock(*decodeMutex);
-					p_coding.decodePacket(lScene, decodeMap, decodeBuf, recv_byte_len);
+					p_coding.decodePacket(lScene, decodeBuf, recv_byte_len);
 				}
 				delete decodeBuf;
 				return true;
@@ -390,6 +390,15 @@ void FBXTransmitter::backgroundListenServer() {
 	delete recv_intermediate_buf;
 
 	UI_Printf("Decode has finished. %d packets were received during transmission",packetCount);
+	
+	if (p_coding.isLDPCEnabled()) {
+		UI_Printf("LDPC is enabled. Starting recovery of missing packets.");
+		p_coding.startLDPCRecovery(lScene );
+	}
+	
+	
+	
+	
 	UI_Printf("Ready to convert data to a hierarchical skeleton.");
 
 	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *) skel->GetName(), p_globalTransformationMode);
@@ -607,23 +616,7 @@ void FBXTransmitter::updateSocketAddr() {
 
 
 
-/// <summary>
-/// Creates a map the relates node pointsers and their IDs
-/// </summary>
-void FBXTransmitter::initializeJointIdMap(FbxNode *parentNode, std::map<short, FbxNode *> &idMap) {
 
-	int childCount = parentNode->GetChildCount();
-
-	for (int i = 0; i < childCount; i++) {
-		FbxNode* childI = parentNode->GetChild(i);
-		idMap[getCustomIdProperty(childI)] = childI;
-
-		// Check if child has any translation curve
-		if (childI->LclTranslation.IsAnimated())
-			idMap[TRANSLATION_CUSTOM_ID] = childI;
-	}
-
-}
 
 
 void FBXTransmitter::createModelBaseFile() {
