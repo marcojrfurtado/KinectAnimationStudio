@@ -71,3 +71,19 @@ int getCustomIdProperty(FbxNode *fNode);
 /// Sets custom ID for a FBX NODE
 /// </summary>
 void setCustomIdProperty(FbxNode *fNode, int newId);
+
+/// <summary>
+/// Computes keyframe rate
+/// </summary>
+int computeFPS(FbxAnimCurve *tgtCurve);
+
+/// <summary>
+/// Computes time with offset
+/// </summary>
+FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, int fps);
+
+
+/// <summary>
+/// Inserts new key into animation curve
+/// </summary>
+void insertKeyCurve(FbxAnimCurve* tgtCurve, FbxTime keyTime, float keyVal, bool isTranslation);

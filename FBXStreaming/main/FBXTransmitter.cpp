@@ -392,7 +392,6 @@ void FBXTransmitter::backgroundListenServer() {
 	UI_Printf("Decode has finished. %d packets were received during transmission",packetCount);
 	
 	if (p_coding.isLDPCEnabled()) {
-		UI_Printf("LDPC is enabled. Starting recovery of missing packets.");
 		p_coding.startLDPCRecovery(lScene );
 	}
 	

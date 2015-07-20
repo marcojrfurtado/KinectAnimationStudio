@@ -432,3 +432,54 @@ int getCustomIdProperty(FbxNode *fNode) {
 	}
 	return id;
 }
+
+/// <summary>
+/// Computes keyframe rate
+/// </summary>
+int computeFPS(FbxAnimCurve *tgtCurve) {
+	int retVal;
+
+	if (tgtCurve->KeyGetCount() < 2)
+		return 0;
+
+	FbxAnimCurveKey k1, k2;
+
+	k1 = tgtCurve->KeyGet(0);
+	k2 = tgtCurve->KeyGet(1);
+
+	double t1 = k1.GetTime().GetSecondDouble();
+	double t2 = k2.GetTime().GetSecondDouble();
+	retVal = (int)round(1.0 / (t2 - t1));
+	return retVal;
+}
+
+
+/// <summary>
+/// Computes time with offset, in milliseconds
+/// </summary>
+FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, int fps) {
+
+	FbxLongLong timeWithOffset = currentTime;
+	timeWithOffset += offset * FbxLongLong(1000 / fps);
+	return timeWithOffset;
+}
+
+/// <summary>
+/// Inserts new key into animation curve
+/// </summary>
+void insertKeyCurve(FbxAnimCurve* tgtCurve, FbxTime keyTime ,float keyVal, bool isTranslation) {
+
+	tgtCurve->KeyModifyBegin();
+
+	// Safely add new key
+	int newKeyIndex = tgtCurve->KeyInsert(keyTime);
+	tgtCurve->KeySetValue(newKeyIndex, keyVal);
+
+	if (isTranslation)
+		tgtCurve->KeySetInterpolation(newKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+	else
+		tgtCurve->KeySetInterpolation(newKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+
+
+	tgtCurve->KeyModifyEnd();
+}

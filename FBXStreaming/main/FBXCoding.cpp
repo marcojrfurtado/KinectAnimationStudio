@@ -10,7 +10,8 @@ FBXCoding::FBXCoding(bool enableInterleaving, int latency, bool enableLDPC, int 
 p_isInterleavingMode(enableInterleaving),
 p_latencyWindow(latency), 
 p_enableLDPC(enableLDPC),
-p_LDPC_offset(ldpc_offset)
+p_LDPC_offset(ldpc_offset),
+p_fps(0)
 { 
 	ConfigFileParser &parser = ConfigFileParser::getInstance();
 	std::string latentsize = parser.getParameter(LATENCY_WINDOW);
@@ -246,11 +247,14 @@ void FBXCoding::decodePacket(FbxScene *lScene, char *p, int numBytesRecv) {
 /// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 /// <param name="frag">Fragment to be decoded</param>
 void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) {
-	// Decode parity part
-	p_ldpc_parity_map[std::pair<short,FbxLongLong>(frag.joint_id,frag.time)] = frag.bits;
+
 
 	// Every LDPC_PACKET is also a PACKET, so we need to decode the rest of it
 	decodeFragment(animLayer, frag);
+
+	// Decode parity part
+	p_ldpc_parity_map[std::pair<short, FbxLongLong>(frag.joint_id, frag.time)] = frag.bits;
+	
 }
 
 /// <summary>
@@ -260,6 +264,15 @@ void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) 
 /// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 /// <param name="frag">Fragment to be decoded</param>
 void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, PACKET &frag){
+
+	//Extract frame rate
+	if (frag.joint_id <= TRANSLATION_CUSTOM_ID) {
+		if (p_fps == 0)  {
+			p_fps = (int)abs(frag.joint_id);
+			UI_Printf(" Motion Clip FPS is equal to %d", p_fps);
+		}
+		frag.joint_id = TRANSLATION_CUSTOM_ID;
+	}
 
 	auto it = p_jointMap.find(frag.joint_id);
 	if (it == p_jointMap.end()){
@@ -359,9 +372,20 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 		zCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
 	}
 
+
 	// Nothing to be processed, just leave
 	if (!xCurve && !yCurve && !zCurve)
 		return pIndex;
+
+	// Calculate FPS
+	if (p_fps == 0) {
+		// Get any curve that is not null
+		FbxAnimCurve *tgtCurve = (xCurve) ? xCurve : (yCurve) ? yCurve : zCurve;
+		p_fps = computeFPS(tgtCurve);
+
+		if (p_fps != 0)
+			UI_Printf(" Motion Clip FPS is equal to %d", p_fps);
+	}
 
 
 	// Maximum number of keys a package can store
@@ -414,10 +438,13 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 /// <param name="isTranslation">Are these translation curves?</param>
 /// <return>Updated pIndex</return>
 void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, int keyIndex,  FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation) {
-	if (isTranslation)
-		outP.joint_id = TRANSLATION_CUSTOM_ID;
-	else
+	if (isTranslation) {
+		short translationID = (p_fps != 0) ? TRANSLATION_CUSTOM_ID*p_fps : TRANSLATION_CUSTOM_ID;
+		outP.joint_id = translationID;
+	}
+	else {
 		outP.joint_id = getCustomIdProperty(tgtNode);
+	}
 
 	if (xCurve) {
 		outP.x = xCurve->KeyGet(keyIndex).GetValue();
@@ -448,9 +475,9 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 	int keyOffset = keyIndex + p_LDPC_offset;
 	if (keyOffset < keyTotal) {
 		//	UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
-		x = xCurve->KeyGet(keyOffset).GetValue();
-		y = yCurve->KeyGet(keyOffset).GetValue();
-		z = zCurve->KeyGet(keyOffset).GetValue();
+		x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0;
+		y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0;
+		z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0;
 
 		itpp::bvec bitsin = tobvec(x);
 		bitsin = concat(bitsin, tobvec(y));
@@ -501,6 +528,45 @@ itpp::bvec FBXCoding::tobvec(float f) {
 	return resultBvec;
 }
 
+
+/// <summary>
+/// Converts bvec to float
+/// </summary>
+float FBXCoding::tofloat(itpp::bvec &input) {
+
+	std::bitset<sizeof(float) * CHAR_BIT>   tempBSet;
+
+	for (int i = 0; i < input.length(); i++) {
+		tempBSet[i] = input[i];
+	}
+
+	union
+	{
+		unsigned long input;   // assumes sizeof(float) == sizeof(int)
+		float   output;
+	}    data;
+
+
+	data.input = tempBSet.to_ulong();
+	return data.output;
+
+}
+
+/// <summary>
+/// Converts parity bitset to bvec
+/// </summary>
+itpp::bvec FBXCoding::tobvec(std::bitset<N_PARITY_BIT> bset) {
+
+	itpp::bvec resultBvec;
+	resultBvec.set_length(N_PARITY_BIT);
+
+	for (int i = 0; i < resultBvec.length(); i++) {
+		resultBvec[i] = bset[i];
+	}
+
+	return resultBvec;
+
+}
 /// <summary>
 /// Recovers missing information in the animation by using LDPC parity data
 /// </summary>
@@ -509,6 +575,19 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 
 	if (!isLDPCEnabled())
 		return;
+
+	UI_Printf("LDPC is enabled. Starting recovery of missing packets.");
+
+
+
+	if (p_fps == 0) {
+		UI_Printf(" LDPC Reconstruction failed: Unable to estimate FPS.");
+		return;
+	}
+
+	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
+	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
+
 
 	for (auto &it : p_ldpc_parity_map) {
 
@@ -520,6 +599,96 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			continue;
 
 		FbxNode *tgtNode = node_it->second;
+
+		FbxAnimCurve *xCurve, *yCurve, *zCurve, *tgtCurve = NULL;
+
+		if (key_pair.first == TRANSLATION_CUSTOM_ID) {
+			xCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+			yCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+			zCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+		}
+		else {
+			xCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+			yCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+			zCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+		}
+
+		// Target key time
+		FbxTime keyTime;
+		FbxLongLong offsetTime = computeOffsetTime(key_pair.second, p_LDPC_offset, p_fps);
+		keyTime.SetMilliSeconds(offsetTime);
+
+		// X,Y and Z values extracted from curve
+		float xInterpVal = 0.0, yInterpVal = 0.0, zInterpVal = 0.0;
+
+		if (xCurve) {
+			xInterpVal = xCurve->Evaluate(keyTime);
+			tgtCurve = xCurve;
+		}
+		if (yCurve) {
+			yInterpVal = yCurve->Evaluate(keyTime);
+			tgtCurve = yCurve;
+		}
+		if (zCurve) {
+			yInterpVal = zCurve->Evaluate(keyTime);
+			tgtCurve = zCurve;
+		}
+
+
+		if (tgtCurve == NULL)
+			continue;
+		
+
+		// Offset time 
+		double temp;
+		double keyIndex = tgtCurve->KeyFind(key_pair.second);
+		// There is no key for the given time - reconstruct at that point
+		if (modf(keyIndex, &temp) > c_minKeyIndexDiff ) {
+			UI_Printf("Reconstructing index %f", keyIndex);
+				
+			itpp::bvec encodedVec = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
+			static itpp::LDPC_Code decoder(&H, &G);
+			itpp::bvec decodedVec = decoder.decode(encodedVec);
+
+
+			itpp::bvec zVec = decodedVec.split(sizeof(float) * 8);
+			itpp::bvec yVec = decodedVec.split(sizeof(float) * 8);
+			itpp::bvec xVec = decodedVec;
+
+			float zNewVal = tofloat(zVec), yNewVal = tofloat(yVec), xNewVal = tofloat(xVec);
+
+			
+
+			// Create new keys
+			if (xCurve) {
+				insertKeyCurve(xCurve, keyTime, xNewVal, (key_pair.first == TRANSLATION_CUSTOM_ID));
+			}
+			if (yCurve) {
+				insertKeyCurve(yCurve, keyTime, yNewVal, (key_pair.first == TRANSLATION_CUSTOM_ID));
+			}
+			if (zCurve) {
+				insertKeyCurve(zCurve, keyTime, zNewVal, (key_pair.first == TRANSLATION_CUSTOM_ID));
+			}
+		}
 	}
 
+
+	UI_Printf("LDPC recovery has been performed.");
+}
+
+
+/// <summary>
+/// Encode curve data and parity, so we can use LDPC to decode it and fix missing values
+/// </summary>
+itpp::bvec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal) {
+
+	itpp::bvec xVec = tobvec(xIntVal);
+	itpp::bvec yVec = tobvec(yIntVal);
+	itpp::bvec zVec = tobvec(zIntVal);
+	itpp::bvec parityVec = tobvec(parityVal);
+
+
+	itpp::bvec encodedVec = itpp::concat(xVec, yVec, zVec, parityVec);
+
+	return encodedVec;
 }

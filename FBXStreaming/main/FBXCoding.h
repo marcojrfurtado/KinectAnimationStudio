@@ -71,6 +71,9 @@ private:
 	// Constant definitions
 	const char *c_defaultParityFileName = "default_H.alist";
 
+	// Minimum key index difference
+	const double c_minKeyIndexDiff = 0.0001;
+
 
 	// Private attributes
 
@@ -103,6 +106,10 @@ private:
 	// Parity map, used to restore missing keyframes
 	// Relates key timestamps to their corresponding parities
 	std::map<std::pair<short,FbxLongLong>, std::bitset<N_PARITY_BIT>> p_ldpc_parity_map;
+
+
+	// Framerate
+	int p_fps;
 
 	// Private methods
 
@@ -160,5 +167,22 @@ private:
 	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p);
 
 	itpp::bvec tobvec(float f);
+
+	/// <summary>
+	/// Converts parity bitset to bvec
+	/// </summary>
+	itpp::bvec tobvec(std::bitset<N_PARITY_BIT> bset);
+
+	/// <summary>
+	/// Converts bvec to float
+	/// </summary>
+	float tofloat(itpp::bvec &input);
+
+
+	/// <summary>
+	/// Encode curve data and parity, so we can use LDPC to decode it and fix missing values
+	/// </summary>
+	itpp::bvec encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal);
+
 
 };
