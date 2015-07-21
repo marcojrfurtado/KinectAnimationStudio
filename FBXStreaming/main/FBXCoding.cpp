@@ -268,8 +268,8 @@ void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, PACKET &frag){
 	//Extract frame rate
 	if (frag.joint_id <= TRANSLATION_CUSTOM_ID) {
 		if (p_fps == 0)  {
-			p_fps = (int)abs(frag.joint_id);
-			UI_Printf(" Motion Clip FPS is equal to %d", p_fps);
+			p_fps = (double)abs(frag.joint_id);
+			UI_Printf(" Motion Clip FPS is equal to %lf", p_fps);
 		}
 		frag.joint_id = TRANSLATION_CUSTOM_ID;
 	}
@@ -384,7 +384,7 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 		p_fps = computeFPS(tgtCurve);
 
 		if (p_fps != 0)
-			UI_Printf(" Motion Clip FPS is equal to %d", p_fps);
+			UI_Printf(" Motion Clip FPS is equal to %lf", p_fps);
 	}
 
 
@@ -613,6 +613,22 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			zCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
 		}
 
+	
+		tgtCurve = (xCurve) ? (xCurve) : (yCurve) ? (yCurve) : (zCurve);
+
+		if (tgtCurve == NULL)
+			continue;
+		
+		static bool reEstimateFPS = true;
+		if (reEstimateFPS) {
+			FbxAnimCurveKey k1, k2;
+			k1 = tgtCurve->KeyGet(0);
+			k2 = tgtCurve->KeyGet(1);
+			p_fps = decodeFPSReestimate(p_fps, k1.GetTime().GetMilliSeconds(),k2.GetTime().GetMilliSeconds());
+			reEstimateFPS = false;
+		}
+
+
 		// Target key time
 		FbxTime keyTime;
 		FbxLongLong offsetTime = computeOffsetTime(key_pair.second, p_LDPC_offset, p_fps);
@@ -623,25 +639,19 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 
 		if (xCurve) {
 			xInterpVal = xCurve->Evaluate(keyTime);
-			tgtCurve = xCurve;
 		}
 		if (yCurve) {
 			yInterpVal = yCurve->Evaluate(keyTime);
-			tgtCurve = yCurve;
 		}
 		if (zCurve) {
 			yInterpVal = zCurve->Evaluate(keyTime);
-			tgtCurve = zCurve;
 		}
 
-
-		if (tgtCurve == NULL)
-			continue;
-		
-
-		// Offset time 
+		// Offset  
 		double temp;
-		double keyIndex = tgtCurve->KeyFind(key_pair.second);
+		double keyIndex = tgtCurve->KeyFind(keyTime);
+		//UI_Printf("key_pair - id: %d, time: %lld", key_pair.first, key_pair.second);
+		//UI_Printf("result of modf: %f", modf(keyIndex, &temp));
 		// There is no key for the given time - reconstruct at that point
 		if (modf(keyIndex, &temp) > c_minKeyIndexDiff ) {
 			UI_Printf("Reconstructing index %f", keyIndex);
@@ -691,4 +701,19 @@ itpp::bvec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVa
 	itpp::bvec encodedVec = itpp::concat(xVec, yVec, zVec, parityVec);
 
 	return encodedVec;
+}
+
+
+/// <summary>
+/// Recomputes FPS estimate, based on actual timestamps
+/// </summary>
+double FBXCoding::decodeFPSReestimate(double curFPS, FbxLongLong t1, FbxLongLong t2) {
+
+	double frameDiff = double(t2 - t1) / ( 1000.0 / curFPS );
+
+	double newFPS = (1000.0 * round(frameDiff)) / double(t2 - t1);
+
+	UI_Printf("FPS was re-estimated. New value is equal to %lf", newFPS);
+
+	return newFPS;
 }

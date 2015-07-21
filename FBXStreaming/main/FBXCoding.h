@@ -55,6 +55,8 @@ public:
 		UI_Printf(" Coder Initialization: Interleaving packet mode set to %d", p_isInterleavingMode);
 		UI_Printf(" Coder Initialization: LDPC packet mode set to %d", p_enableLDPC);
 		UI_Printf(" Coder Initialization: LDPC offset set to %d", p_LDPC_offset);
+		UI_Printf("size of float %d", sizeof(float));
+		UI_Printf("size of short %d", sizeof(short));
 	}
 
 	/// <summary>
@@ -109,7 +111,7 @@ private:
 
 
 	// Framerate
-	int p_fps;
+	double p_fps;
 
 	// Private methods
 
@@ -184,5 +186,8 @@ private:
 	/// </summary>
 	itpp::bvec encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal);
 
-
+	/// <summary>
+	/// Recomputes FPS estimate, based on actual timestamps
+	/// </summary>
+	double decodeFPSReestimate(double curFPS, FbxLongLong t1, FbxLongLong t2);
 };

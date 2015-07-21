@@ -436,8 +436,8 @@ int getCustomIdProperty(FbxNode *fNode) {
 /// <summary>
 /// Computes keyframe rate
 /// </summary>
-int computeFPS(FbxAnimCurve *tgtCurve) {
-	int retVal;
+double computeFPS(FbxAnimCurve *tgtCurve) {
+	double retVal;
 
 	if (tgtCurve->KeyGetCount() < 2)
 		return 0;
@@ -449,7 +449,7 @@ int computeFPS(FbxAnimCurve *tgtCurve) {
 
 	double t1 = k1.GetTime().GetSecondDouble();
 	double t2 = k2.GetTime().GetSecondDouble();
-	retVal = (int)round(1.0 / (t2 - t1));
+	retVal = 1.0 / (t2 - t1);
 	return retVal;
 }
 
@@ -457,10 +457,10 @@ int computeFPS(FbxAnimCurve *tgtCurve) {
 /// <summary>
 /// Computes time with offset, in milliseconds
 /// </summary>
-FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, int fps) {
+FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, double fps) {
 
 	FbxLongLong timeWithOffset = currentTime;
-	timeWithOffset += offset * FbxLongLong(1000 / fps);
+	timeWithOffset += offset * FbxLongLong(1000.0 / fps);
 	return timeWithOffset;
 }
 

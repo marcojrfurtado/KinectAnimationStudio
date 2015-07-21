@@ -75,12 +75,12 @@ void setCustomIdProperty(FbxNode *fNode, int newId);
 /// <summary>
 /// Computes keyframe rate
 /// </summary>
-int computeFPS(FbxAnimCurve *tgtCurve);
+double computeFPS(FbxAnimCurve *tgtCurve);
 
 /// <summary>
 /// Computes time with offset
 /// </summary>
-FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, int fps);
+FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, double fps);
 
 
 /// <summary>
