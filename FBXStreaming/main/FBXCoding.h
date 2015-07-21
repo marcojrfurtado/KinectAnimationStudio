@@ -74,7 +74,10 @@ private:
 	const char *c_defaultParityFileName = "default_H.alist";
 
 	// Minimum key index difference
-	const double c_minKeyIndexDiff = 0.0001;
+	const double c_minKeyIndexDiff = 0.09;
+
+	// Minimum key time difference in milliseconds
+	const long long c_minKeyTimeDiff = 5;
 
 
 	// Private attributes
@@ -190,4 +193,9 @@ private:
 	/// Recomputes FPS estimate, based on actual timestamps
 	/// </summary>
 	double decodeFPSReestimate(double curFPS, FbxLongLong t1, FbxLongLong t2);
+
+	/// <summary>
+	/// Calculate Minimum key difference, returns true if difference is acceptable
+	/// </summary>
+	bool calcMinKeyDiff(FbxTime key1Time, double key2Index, FbxAnimCurve *tgtCurve);
 };

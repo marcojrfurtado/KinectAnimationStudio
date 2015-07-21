@@ -615,11 +615,11 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 
 	
 		tgtCurve = (xCurve) ? (xCurve) : (yCurve) ? (yCurve) : (zCurve);
-
+		//UI_Printf("key count: %d", tgtCurve->KeyGetCount());
 		if (tgtCurve == NULL)
 			continue;
 		
-		static bool reEstimateFPS = true;
+		static bool reEstimateFPS = false;
 		if (reEstimateFPS) {
 			FbxAnimCurveKey k1, k2;
 			k1 = tgtCurve->KeyGet(0);
@@ -631,8 +631,8 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 
 		// Target key time
 		FbxTime keyTime;
-		FbxLongLong offsetTime = computeOffsetTime(key_pair.second, p_LDPC_offset, p_fps);
-		keyTime.SetMilliSeconds(offsetTime);
+		double offsetTime = computeOffsetTime(key_pair.second, p_LDPC_offset, p_fps);
+		keyTime.SetSecondDouble(offsetTime);
 
 		// X,Y and Z values extracted from curve
 		float xInterpVal = 0.0, yInterpVal = 0.0, zInterpVal = 0.0;
@@ -650,10 +650,18 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 		// Offset  
 		double temp;
 		double keyIndex = tgtCurve->KeyFind(keyTime);
+		bool acceptableDiff = true;
+
+
+		if (keyIndex > (tgtCurve->KeyGetCount() - 1)) {
+			keyIndex = tgtCurve->KeyGetCount() - 1;
+		}
+
+		acceptableDiff = calcMinKeyDiff(keyTime, keyIndex, tgtCurve);
 		//UI_Printf("key_pair - id: %d, time: %lld", key_pair.first, key_pair.second);
 		//UI_Printf("result of modf: %f", modf(keyIndex, &temp));
 		// There is no key for the given time - reconstruct at that point
-		if (modf(keyIndex, &temp) > c_minKeyIndexDiff ) {
+		if (!acceptableDiff) {
 			UI_Printf("Reconstructing index %f", keyIndex);
 				
 			itpp::bvec encodedVec = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
@@ -716,4 +724,18 @@ double FBXCoding::decodeFPSReestimate(double curFPS, FbxLongLong t1, FbxLongLong
 	UI_Printf("FPS was re-estimated. New value is equal to %lf", newFPS);
 
 	return newFPS;
+}
+
+/// <summary>
+/// Calculate Minimum key difference, returns true if difference is acceptable
+/// </summary>
+bool FBXCoding::calcMinKeyDiff(FbxTime key1Time, double key2Index, FbxAnimCurve *tgtCurve) {
+	
+	int roundKey = (int)round(key2Index);
+	FbxTime key2Time;
+	key2Time = tgtCurve->KeyGet(roundKey).GetTime();
+
+	UI_Printf("absolute min difference in miliseconds: %lld", abs(key2Time.GetMilliSeconds() - key1Time.GetMilliSeconds()));
+	
+	return abs(key2Time.GetMilliSeconds() - key1Time.GetMilliSeconds()) < (c_minKeyIndexDiff*(1000.0/p_fps));
 }

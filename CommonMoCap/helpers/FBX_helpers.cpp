@@ -457,10 +457,12 @@ double computeFPS(FbxAnimCurve *tgtCurve) {
 /// <summary>
 /// Computes time with offset, in milliseconds
 /// </summary>
-FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, double fps) {
+double computeOffsetTime(FbxLongLong currentTime, int offset, double fps) {
+	FbxTime current;
+	current.SetMilliSeconds(currentTime);
+	double timeWithOffset = current.GetSecondDouble();
+	timeWithOffset += offset * (1.0 / fps);
 
-	FbxLongLong timeWithOffset = currentTime;
-	timeWithOffset += offset * FbxLongLong(1000.0 / fps);
 	return timeWithOffset;
 }
 

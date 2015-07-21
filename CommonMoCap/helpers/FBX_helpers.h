@@ -80,7 +80,7 @@ double computeFPS(FbxAnimCurve *tgtCurve);
 /// <summary>
 /// Computes time with offset
 /// </summary>
-FbxLongLong computeOffsetTime(FbxLongLong currentTime, int offset, double fps);
+double computeOffsetTime(FbxLongLong currentTime, int offset, double fps);
 
 
 /// <summary>
