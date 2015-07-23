@@ -185,7 +185,7 @@ private:
 	/// <summary>
 	/// Encode curve data and parity, so we can use LDPC to decode it and fix missing values
 	/// </summary>
-	itpp::bvec encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal);
+	itpp::vec encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal);
 
 	/// <summary>
 	/// Recomputes FPS estimate, based on actual timestamps

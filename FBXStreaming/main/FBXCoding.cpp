@@ -477,7 +477,6 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
 
 
-
 	int keyOffset = keyIndex + p_LDPC_offset;
 	if (keyOffset < keyTotal) {
 		//	UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
@@ -512,8 +511,9 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 }
 
 void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p) {
-	for (int i = 96; i < 104; i++) {
-		p.bits[i%8] = bin_list[i];
+	static const int eulerbitwidth = 3 * sizeof(float) * 8;
+	for (int i = eulerbitwidth; i < eulerbitwidth + N_PARITY_BIT; i++) {
+		p.bits[i%N_PARITY_BIT] = bin_list[i];
 	}
 }
 
@@ -692,14 +692,17 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			recoveredCount++;
 			UI_Printf("Reconstructing index %f", nearestKeyIndex);
 				
-			itpp::bvec encodedVec = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
+			itpp::vec encodedLLR = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
 			static itpp::LDPC_Code decoder(&H, &G);
-			itpp::bvec decodedVec = decoder.decode(encodedVec);
+			itpp::bvec decodedVec = decoder.decode(encodedLLR);
+
+			std::string sLLR = itpp::to_str(encodedLLR);
+			std::string s =  itpp::to_str(decodedVec);
 
 
-			itpp::bvec zVec = decodedVec.split(sizeof(float) * 8);
+			itpp::bvec xVec = decodedVec.split(sizeof(float) * 8);
 			itpp::bvec yVec = decodedVec.split(sizeof(float) * 8);
-			itpp::bvec xVec = decodedVec;
+			itpp::bvec zVec = decodedVec;
 
 			float zNewVal = tofloat(zVec), yNewVal = tofloat(yVec), xNewVal = tofloat(xVec);
 
@@ -726,17 +729,41 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 /// <summary>
 /// Encode curve data and parity, so we can use LDPC to decode it and fix missing values
 /// </summary>
-itpp::bvec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal) {
+itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal) {
+
+	static const int eulerBitWidth = 3 * sizeof(float) * 8;
+	itpp::vec encodedLLR(eulerBitWidth + N_PARITY_BIT); // the size of return vector should be 3 floats + parity
 
 	itpp::bvec xVec = tobvec(xIntVal);
 	itpp::bvec yVec = tobvec(yIntVal);
 	itpp::bvec zVec = tobvec(zIntVal);
-	itpp::bvec parityVec = tobvec(parityVal);
+	//itpp::bvec parityVec = tobvec(parityVal);
+	itpp::bvec eulerVec = itpp::concat(xVec, yVec, zVec);
+
+	// We are not sure about our float data (LLR = 0)
+	for (int i = 0; i < eulerVec.length(); i++) {
+		if (eulerVec[i] == 0)
+			encodedLLR[i] = 0.1760;
+		else // == 1
+			encodedLLR[i] = -0.1760;
+			
+	}
 
 
-	itpp::bvec encodedVec = itpp::concat(xVec, yVec, zVec, parityVec);
 
-	return encodedVec;
+	// We are certain that parity is correct
+	// So if P(b=0) -> LLT(b)=+INF
+	// And if P(b=1) -> LLT(b)=-INF
+	for (int i = 0; i < parityVal.size(); i++) {
+		if (parityVal[i] == 0)
+			encodedLLR[i + eulerBitWidth] = itpp::QLLR_MAX;
+		else // == 1
+			encodedLLR[i + eulerBitWidth] = -itpp::QLLR_MAX;
+	}
+
+
+	return encodedLLR;
+	
 }
 
 
