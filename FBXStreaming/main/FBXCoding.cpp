@@ -86,7 +86,7 @@ void FBXCoding::initializeJointIdMap(FbxNode *parentNode) {
 
 void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) {
 	int Max_key_num;
-	size_t fragmentSize;
+	int fragmentSize;
 	char *out_buf;
 
 	if (p_enableLDPC) {
@@ -252,6 +252,13 @@ void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) 
 	// Every LDPC_PACKET is also a PACKET, so we need to decode the rest of it
 	decodeFragment(animLayer, frag);
 
+	static std::bitset<N_PARITY_BIT> zeroBitsSet;
+
+	// If all parity bits are 0, it probably means that parity was not encoded.
+	// This happens if keyIndex + offset > total key count
+	if (frag.bits == zeroBitsSet)
+		return;
+
 	// Decode parity part
 	p_ldpc_parity_map[std::pair<short, FbxLongLong>(frag.joint_id, frag.time)] = frag.bits;
 	
@@ -391,7 +398,6 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 	// Maximum number of keys a package can store
 	int Max_key_num;
 	int bytes_sent;
-	PACKET *p_in_pIndex;
 
 	if (p_enableLDPC) {
 		PACKET_LDPC &p_at_pos = ((PACKET_LDPC *)p)[pIndex];
@@ -439,7 +445,7 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 /// <return>Updated pIndex</return>
 void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, int keyIndex,  FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation) {
 	if (isTranslation) {
-		short translationID = (p_fps != 0) ? TRANSLATION_CUSTOM_ID*p_fps : TRANSLATION_CUSTOM_ID;
+		short translationID = (p_fps != 0) ? short(TRANSLATION_CUSTOM_ID*p_fps) : TRANSLATION_CUSTOM_ID;
 		outP.joint_id = translationID;
 	}
 	else {
@@ -475,9 +481,9 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 	int keyOffset = keyIndex + p_LDPC_offset;
 	if (keyOffset < keyTotal) {
 		//	UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
-		x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0;
-		y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0;
-		z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0;
+		x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0f;
 
 		itpp::bvec bitsin = tobvec(x);
 		bitsin = concat(bitsin, tobvec(y));
@@ -489,6 +495,10 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 
 		//std::string bvecStringIn = itpp::to_str(bitsin);
 		//UI_Printf("bitsin: %s", bvecStringIn.c_str());
+	}
+	else {
+		// Ensure parity bits are 0
+		outP.bits = std::bitset<N_PARITY_BIT>();
 	}
 	// Printing the bits (checking to see if extracting the parity bits)
 	/*
@@ -589,7 +599,24 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
 
 
+	// Number of recovered keyframes
+	int recoveredCount = 0;
+
+	// Number of processed keyframes
+	int nProcessedKeys = 0;
+	size_t nTotalKeys = p_ldpc_parity_map.size();
+	double showRatio = 0;
+
 	for (auto &it : p_ldpc_parity_map) {
+
+		// Let the user know the progress
+		double procRatio = (nProcessedKeys++) / double(nTotalKeys);
+		if (procRatio - showRatio > 0.2) {
+			UI_Printf(" Recovery status: %lf%% of keyframes have been processed.", procRatio*100.0);
+			showRatio = procRatio;
+		}
+
+
 
 		auto &key_pair = it.first;
 		auto &value_parity = it.second;
@@ -644,25 +671,26 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			yInterpVal = yCurve->Evaluate(keyTime);
 		}
 		if (zCurve) {
-			yInterpVal = zCurve->Evaluate(keyTime);
+			zInterpVal = zCurve->Evaluate(keyTime);
 		}
 
 		// Offset  
-		double temp;
-		double keyIndex = tgtCurve->KeyFind(keyTime);
+		double nearestKeyIndex = tgtCurve->KeyFind(keyTime);
 		bool acceptableDiff = true;
 
 
-		if (keyIndex > (tgtCurve->KeyGetCount() - 1)) {
-			keyIndex = tgtCurve->KeyGetCount() - 1;
+		// Reach the end of clip
+		if (nearestKeyIndex >= (tgtCurve->KeyGetCount() - 1)) {
+			nearestKeyIndex = tgtCurve->KeyGetCount() - 1;
 		}
 
-		acceptableDiff = calcMinKeyDiff(keyTime, keyIndex, tgtCurve);
+		acceptableDiff = calcMinKeyDiff(keyTime, nearestKeyIndex, tgtCurve);
 		//UI_Printf("key_pair - id: %d, time: %lld", key_pair.first, key_pair.second);
 		//UI_Printf("result of modf: %f", modf(keyIndex, &temp));
 		// There is no key for the given time - reconstruct at that point
 		if (!acceptableDiff) {
-			UI_Printf("Reconstructing index %f", keyIndex);
+			recoveredCount++;
+			UI_Printf("Reconstructing index %f", nearestKeyIndex);
 				
 			itpp::bvec encodedVec = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
 			static itpp::LDPC_Code decoder(&H, &G);
@@ -691,7 +719,7 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	}
 
 
-	UI_Printf("LDPC recovery has been performed.");
+	UI_Printf("LDPC recovery has been performed. %d keyframes have been recovered.",recoveredCount);
 }
 
 
@@ -735,7 +763,7 @@ bool FBXCoding::calcMinKeyDiff(FbxTime key1Time, double key2Index, FbxAnimCurve 
 	FbxTime key2Time;
 	key2Time = tgtCurve->KeyGet(roundKey).GetTime();
 
-	UI_Printf("absolute min difference in miliseconds: %lld", abs(key2Time.GetMilliSeconds() - key1Time.GetMilliSeconds()));
+	//UI_Printf("absolute min difference in miliseconds: %lld", abs(key2Time.GetMilliSeconds() - key1Time.GetMilliSeconds()));
 	
 	return abs(key2Time.GetMilliSeconds() - key1Time.GetMilliSeconds()) < (c_minKeyIndexDiff*(1000.0/p_fps));
 }

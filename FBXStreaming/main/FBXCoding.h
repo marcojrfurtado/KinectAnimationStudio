@@ -55,8 +55,6 @@ public:
 		UI_Printf(" Coder Initialization: Interleaving packet mode set to %d", p_isInterleavingMode);
 		UI_Printf(" Coder Initialization: LDPC packet mode set to %d", p_enableLDPC);
 		UI_Printf(" Coder Initialization: LDPC offset set to %d", p_LDPC_offset);
-		UI_Printf("size of float %d", sizeof(float));
-		UI_Printf("size of short %d", sizeof(short));
 	}
 
 	/// <summary>
