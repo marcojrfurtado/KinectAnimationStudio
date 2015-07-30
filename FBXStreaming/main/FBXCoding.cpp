@@ -40,8 +40,8 @@ p_fps(0)
 			if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(parityPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
 				// If it does not exist, let us generate parity
 				// it++ construsts Parity Matrix
-				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
-				H.generate(N_DATA_BIT + N_PARITY_BIT, 3, 6, "rand", "200 6");
+				H.generate(N_DATA_BIT + N_PARITY_BIT, 1, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
+				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, 10, "rand", "200 6");
 				H.cycle_removal_MGW(6);
 				H.save_alist(parityPath);
 			}
@@ -512,8 +512,16 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 	*/
 }
 
+
+/// <summary>
+/// Converts a bvec to bitset
+/// </summary>
+/// <param name="bin_list">bvec to be converted</param>
+/// <param name="p">LDPC packet</param>
 void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p) {
 	int eulerbitwidth = 3 * sizeof(float) * 8;
+	
+	// encoding only the mantissa
 	if (c_encode_only_mantissa){
 		eulerbitwidth = 3 * MANTISSA_WIDTH;
 	}
@@ -523,6 +531,12 @@ void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p) {
 	}
 }
 
+
+/// <summary>
+/// Converts a float to bvec
+/// </summary>
+/// <param name="f">float value to be converted</param>
+/// <param name="returnOnlyExponent">false to get mantissa, true to get the exponent and sign of the float</param>
 itpp::bvec FBXCoding::tobvec(float f, bool returnOnlyExponent) {
 	union
 	{
@@ -536,9 +550,13 @@ itpp::bvec FBXCoding::tobvec(float f, bool returnOnlyExponent) {
 
 	itpp::bvec resultBvec;
 
+	// When we want only the signed and exponent of the float we add the offset
+	// to access from result to resltBvec
 	int offset = 0;
+
 	if (returnOnlyExponent) {
 		resultBvec.set_length(SIGN_WIDTH + EXPONENT_WIDTH);
+		// To get the signed and exponent bits
 		offset = MANTISSA_WIDTH;
 	} else if (c_encode_only_mantissa) {
 		resultBvec.set_length(MANTISSA_WIDTH);
@@ -619,10 +637,16 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	// Number of recovered keyframes
 	int recoveredCount = 0;
 
+	// Number of skipped packages
+	int skipPacketCount = 0;
+
 	// Number of processed keyframes
 	int nProcessedKeys = 0;
 	size_t nTotalKeys = p_ldpc_parity_map.size();
 	double showRatio = 0;
+
+	static itpp::LDPC_Code decoder(&H, &G);
+	//decoder.set_exit_conditions(3000);
 
 	for (auto &it : p_ldpc_parity_map) {
 
@@ -707,10 +731,9 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 		// There is no key for the given time - reconstruct at that point
 		if (!acceptableDiff) {
 			recoveredCount++;
-			UI_Printf("Reconstructing index %f", nearestKeyIndex);
+			//UI_Printf("Reconstructing index %f", nearestKeyIndex);
 				
 			itpp::vec encodedLLR = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
-			static itpp::LDPC_Code decoder(&H, &G);
 			itpp::bvec decodedVec = decoder.decode(encodedLLR);
 
 			std::string sLLR = itpp::to_str(encodedLLR);
@@ -745,8 +768,13 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			}
 
 			float zNewVal = tofloat(zVec), yNewVal = tofloat(yVec), xNewVal = tofloat(xVec);
-
 			
+			// Check that the interpolated values or not above the threshold
+			if (std::max(abs(xInterpVal - xNewVal), std::max(abs(yInterpVal - yNewVal), abs(zInterpVal - zNewVal))) > LDPC_threshold) {
+				skipPacketCount++;
+				UI_Printf("Over theshold. Skipped %d packet(s)", skipPacketCount);
+				continue;
+			}
 
 			// Create new keys
 			if (xCurve) {
@@ -787,9 +815,9 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 	for (int i = 0; i < eulerVec.length(); i++) {
 		int iWeight = i % (eulerbitwidth / 3);
 		if (eulerVec[i] == 0)
-			encodedLLR[i] = 0.01 * (iWeight + 1);
+			encodedLLR[i] = 0.06 * (iWeight + 1);
 		else // == 1
-			encodedLLR[i] = -0.01 * (iWeight + 1);
+			encodedLLR[i] = -0.06 * (iWeight + 1);
 	}
 
 

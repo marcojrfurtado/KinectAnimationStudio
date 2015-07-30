@@ -68,6 +68,9 @@ public:
 	bool isLDPCEnabled() { return p_enableLDPC;  }
 
 private:
+	
+	// Private attributes
+	
 	// Constant definitions
 	const char *c_defaultParityFileName = "default_H.alist";
 
@@ -80,8 +83,6 @@ private:
 
 	// true for encoding mantissa
 	const bool c_encode_only_mantissa = true;
-
-	// Private attributes
 
 
 	//Map of joints and its corresponding identifiers
@@ -117,8 +118,11 @@ private:
 	// Framerate
 	double p_fps;
 
-	// Private methods
+	// Threshold to compare interpolated value with original
+	const int LDPC_threshold = 45;
 
+
+	// Private methods
 
 	/// <summary>
 	/// Decode LDPC packet fragment
@@ -170,8 +174,19 @@ private:
 	/// <param name="keyIndex">Index of current key</param>
 	void encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex);
 
+	/// <summary>
+	/// Converts a bvec to bitset
+	/// </summary>
+	/// <param name="bin_list">bvec to be converted</param>
+	/// <param name="p">LDPC packet</param>
 	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p);
 
+
+	/// <summary>
+	/// Converts a float to bvec
+	/// </summary>
+	/// <param name="f">float value to be converted</param>
+	/// <param name="returnOnlyExponent">false to get mantissa, true to get the exponent and sign of the float</param>
 	itpp::bvec tobvec(float f, bool returnOnlyExponent = false);
 
 	/// <summary>
