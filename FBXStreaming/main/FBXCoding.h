@@ -78,6 +78,9 @@ private:
 	const long long c_minKeyTimeDiff = 5;
 
 
+	// true for encoding mantissa
+	const bool c_encode_only_mantissa = true;
+
 	// Private attributes
 
 
@@ -169,7 +172,7 @@ private:
 
 	void bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p);
 
-	itpp::bvec tobvec(float f);
+	itpp::bvec tobvec(float f, bool returnOnlyExponent = false);
 
 	/// <summary>
 	/// Converts parity bitset to bvec

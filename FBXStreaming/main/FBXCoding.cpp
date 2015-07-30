@@ -40,7 +40,9 @@ p_fps(0)
 			if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(parityPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
 				// If it does not exist, let us generate parity
 				// it++ construsts Parity Matrix
-				H.generate(N_DATA_BIT + N_PARITY_BIT, 1, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
+				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
+				H.generate(N_DATA_BIT + N_PARITY_BIT, 3, 6, "rand", "200 6");
+				H.cycle_removal_MGW(6);
 				H.save_alist(parityPath);
 			}
 			else {
@@ -511,13 +513,17 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 }
 
 void FBXCoding::bvec2Bitset(itpp::bvec bin_list, PACKET_LDPC &p) {
-	static const int eulerbitwidth = 3 * sizeof(float) * 8;
+	int eulerbitwidth = 3 * sizeof(float) * 8;
+	if (c_encode_only_mantissa){
+		eulerbitwidth = 3 * MANTISSA_WIDTH;
+	}
+
 	for (int i = eulerbitwidth; i < eulerbitwidth + N_PARITY_BIT; i++) {
 		p.bits[i%N_PARITY_BIT] = bin_list[i];
 	}
 }
 
-itpp::bvec FBXCoding::tobvec(float f) {
+itpp::bvec FBXCoding::tobvec(float f, bool returnOnlyExponent) {
 	union
 	{
 		float input;   // assumes sizeof(float) == sizeof(int)
@@ -526,13 +532,24 @@ itpp::bvec FBXCoding::tobvec(float f) {
 
 	data.input = f;
 
-	std::bitset<sizeof(float) * CHAR_BIT>   result(data.output);
+	std::bitset<sizeof(float) * CHAR_BIT> result(data.output);
 
 	itpp::bvec resultBvec;
-	resultBvec.set_length(sizeof(float) * CHAR_BIT);
+
+	int offset = 0;
+	if (returnOnlyExponent) {
+		resultBvec.set_length(SIGN_WIDTH + EXPONENT_WIDTH);
+		offset = MANTISSA_WIDTH;
+	} else if (c_encode_only_mantissa) {
+		resultBvec.set_length(MANTISSA_WIDTH);
+	}
+	else {
+		resultBvec.set_length(sizeof(float) * CHAR_BIT);
+	}
+
 
 	for (int i = 0; i < resultBvec.length(); i++) {
-		resultBvec[i] = result[i];
+		resultBvec[i] = result[i+offset];
 	}
 
 	return resultBvec;
@@ -700,9 +717,32 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			std::string s =  itpp::to_str(decodedVec);
 
 
-			itpp::bvec xVec = decodedVec.split(sizeof(float) * 8);
-			itpp::bvec yVec = decodedVec.split(sizeof(float) * 8);
-			itpp::bvec zVec = decodedVec;
+			itpp::bvec xVec;
+			itpp::bvec yVec;
+			itpp::bvec zVec;
+			if (!c_encode_only_mantissa) {
+				xVec = decodedVec.split(sizeof(float) * 8);
+				yVec = decodedVec.split(sizeof(float) * 8);
+				zVec = decodedVec;
+			}
+			else {
+				itpp::bvec xComp = tobvec(xInterpVal, true);
+				itpp::bvec yComp = tobvec(yInterpVal, true);
+				itpp::bvec zComp = tobvec(zInterpVal, true);
+				
+				xVec = decodedVec.split(MANTISSA_WIDTH);
+				xVec = itpp::concat(xVec, xComp);
+				std::string x = itpp::to_str(xVec);
+
+				yVec = decodedVec.split(MANTISSA_WIDTH);
+				yVec = itpp::concat(yVec, yComp);
+				std::string y = itpp::to_str(yVec);
+
+				zVec = decodedVec;
+				zVec = itpp::concat(zVec, zComp); 
+				std::string z = itpp::to_str(zVec);
+
+			}
 
 			float zNewVal = tofloat(zVec), yNewVal = tofloat(yVec), xNewVal = tofloat(xVec);
 
@@ -730,9 +770,12 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 /// Encode curve data and parity, so we can use LDPC to decode it and fix missing values
 /// </summary>
 itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal, std::bitset<N_PARITY_BIT> &parityVal) {
-
-	static const int eulerBitWidth = 3 * sizeof(float) * 8;
-	itpp::vec encodedLLR(eulerBitWidth + N_PARITY_BIT); // the size of return vector should be 3 floats + parity
+	int eulerbitwidth = 3 * sizeof(float) * 8;
+	if (c_encode_only_mantissa){
+		eulerbitwidth = 3 * MANTISSA_WIDTH;
+	}
+	
+	itpp::vec encodedLLR(eulerbitwidth + N_PARITY_BIT); // the size of return vector should be 3 floats + parity
 
 	itpp::bvec xVec = tobvec(xIntVal);
 	itpp::bvec yVec = tobvec(yIntVal);
@@ -742,11 +785,11 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 
 	// We are not sure about our float data (LLR = 0)
 	for (int i = 0; i < eulerVec.length(); i++) {
+		int iWeight = i % (eulerbitwidth / 3);
 		if (eulerVec[i] == 0)
-			encodedLLR[i] = 0.1760;
+			encodedLLR[i] = 0.01 * (iWeight + 1);
 		else // == 1
-			encodedLLR[i] = -0.1760;
-			
+			encodedLLR[i] = -0.01 * (iWeight + 1);
 	}
 
 
@@ -756,9 +799,9 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 	// And if P(b=1) -> LLT(b)=-INF
 	for (int i = 0; i < parityVal.size(); i++) {
 		if (parityVal[i] == 0)
-			encodedLLR[i + eulerBitWidth] = itpp::QLLR_MAX;
+			encodedLLR[i + eulerbitwidth] = itpp::QLLR_MAX;
 		else // == 1
-			encodedLLR[i + eulerBitWidth] = -itpp::QLLR_MAX;
+			encodedLLR[i + eulerbitwidth] = -itpp::QLLR_MAX;
 	}
 
 
