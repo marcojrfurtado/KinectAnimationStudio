@@ -82,7 +82,7 @@ private:
 
 
 	// true for encoding mantissa
-	const bool c_encode_only_mantissa = true;
+	const bool c_encode_only_mantissa = false;
 
 
 	//Map of joints and its corresponding identifiers

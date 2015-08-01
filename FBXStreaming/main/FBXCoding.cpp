@@ -41,7 +41,7 @@ p_fps(0)
 				// If it does not exist, let us generate parity
 				// it++ construsts Parity Matrix
 				H.generate(N_DATA_BIT + N_PARITY_BIT, 1, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
-				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, 10, "rand", "200 6");
+				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, 14, "rand", "200 6");
 				H.cycle_removal_MGW(6);
 				H.save_alist(parityPath);
 			}
@@ -637,8 +637,8 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	// Number of recovered keyframes
 	int recoveredCount = 0;
 
-	// Number of skipped packages
-	int skipPacketCount = 0;
+	// Number of skipped keyframes
+	int skipCount = 0;
 
 	// Number of processed keyframes
 	int nProcessedKeys = 0;
@@ -646,7 +646,7 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	double showRatio = 0;
 
 	static itpp::LDPC_Code decoder(&H, &G);
-	//decoder.set_exit_conditions(3000);
+	decoder.set_exit_conditions(3000);
 
 	for (auto &it : p_ldpc_parity_map) {
 
@@ -770,11 +770,13 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			float zNewVal = tofloat(zVec), yNewVal = tofloat(yVec), xNewVal = tofloat(xVec);
 			
 			// Check that the interpolated values or not above the threshold
+			/*
 			if (std::max(abs(xInterpVal - xNewVal), std::max(abs(yInterpVal - yNewVal), abs(zInterpVal - zNewVal))) > LDPC_threshold) {
-				skipPacketCount++;
-				UI_Printf("Over theshold. Skipped %d packet(s)", skipPacketCount);
+				skipCount++;
+				UI_Printf("Over theshold. Skipped %d keyframe(s)", skipCount);
 				continue;
 			}
+			*/
 
 			// Create new keys
 			if (xCurve) {
@@ -811,13 +813,15 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 	//itpp::bvec parityVec = tobvec(parityVal);
 	itpp::bvec eulerVec = itpp::concat(xVec, yVec, zVec);
 
+	float weight = 0.9/(eulerbitwidth/3);
+
 	// We are not sure about our float data (LLR = 0)
 	for (int i = 0; i < eulerVec.length(); i++) {
 		int iWeight = i % (eulerbitwidth / 3);
 		if (eulerVec[i] == 0)
-			encodedLLR[i] = 0.06 * (iWeight + 1);
+			encodedLLR[i] = 0.12 +  (float(iWeight) * weight);
 		else // == 1
-			encodedLLR[i] = -0.06 * (iWeight + 1);
+			encodedLLR[i] = -0.12 -  (float(iWeight) * weight);
 	}
 
 
@@ -827,9 +831,9 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 	// And if P(b=1) -> LLT(b)=-INF
 	for (int i = 0; i < parityVal.size(); i++) {
 		if (parityVal[i] == 0)
-			encodedLLR[i + eulerbitwidth] = itpp::QLLR_MAX;
+			encodedLLR[i + eulerbitwidth] = std::numeric_limits<double>::infinity();
 		else // == 1
-			encodedLLR[i + eulerbitwidth] = -itpp::QLLR_MAX;
+			encodedLLR[i + eulerbitwidth] = -(std::numeric_limits<double>::infinity());
 	}
 
 
