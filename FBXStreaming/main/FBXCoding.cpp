@@ -40,7 +40,8 @@ p_fps(0)
 			if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(parityPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
 				// If it does not exist, let us generate parity
 				// it++ construsts Parity Matrix
-				H.generate(N_DATA_BIT + N_PARITY_BIT, 1, (N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT, "rand", "200 6");
+				const int ratio_weight = 1;
+				H.generate(N_DATA_BIT + N_PARITY_BIT, ratio_weight*1, ratio_weight* ( float(N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT ), "rand", "200 6");
 				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, 14, "rand", "200 6");
 				H.cycle_removal_MGW(6);
 				H.save_alist(parityPath);
@@ -646,7 +647,10 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	double showRatio = 0;
 
 	static itpp::LDPC_Code decoder(&H, &G);
-	decoder.set_exit_conditions(3000);
+	decoder.set_exit_conditions(500);
+
+	// Counter for possible inacuraccies in LDPC prediction
+	int LDPC_Interpolated_match = 0;
 
 	for (auto &it : p_ldpc_parity_map) {
 
@@ -731,7 +735,7 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 		// There is no key for the given time - reconstruct at that point
 		if (!acceptableDiff) {
 			recoveredCount++;
-			//UI_Printf("Reconstructing index %f", nearestKeyIndex);
+			//UI_Printf("Reconstructing key at time %lf", keyTime.GetSecondDouble());
 				
 			itpp::vec encodedLLR = encodeCurveLDPC(xInterpVal, yInterpVal, zInterpVal, value_parity);
 			itpp::bvec decodedVec = decoder.decode(encodedLLR);
@@ -778,21 +782,32 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			}
 			*/
 
+			// Set up an alert, in case interpolated value matches LDCP calculated
+			if ((abs(xInterpVal - xNewVal) <= 0.1) && (abs(yInterpVal - yNewVal) <= 0.1) && (abs(zInterpVal - zNewVal) <= 0.1)) {
+				LDPC_Interpolated_match++;
+			}
+
 			// Create new keys
+			bool isTranslation = (key_pair.first == TRANSLATION_CUSTOM_ID);
 			if (xCurve) {
-				insertKeyCurve(xCurve, keyTime, xNewVal, (key_pair.first == TRANSLATION_CUSTOM_ID));
+				insertKeyCurve(xCurve, keyTime, xNewVal, isTranslation);
 			}
 			if (yCurve) {
-				insertKeyCurve(yCurve, keyTime, yNewVal, (key_pair.first == TRANSLATION_CUSTOM_ID));
+				insertKeyCurve(yCurve, keyTime, yNewVal, isTranslation);
 			}
 			if (zCurve) {
-				insertKeyCurve(zCurve, keyTime, zNewVal, (key_pair.first == TRANSLATION_CUSTOM_ID));
+				insertKeyCurve(zCurve, keyTime, zNewVal, isTranslation);
 			}
 		}
 	}
 
 
 	UI_Printf("LDPC recovery has been performed. %d keyframes have been recovered.",recoveredCount);
+
+	if (LDPC_Interpolated_match > 0) {
+		UI_Printf(" WARNING: %d recovered keyframes are nearly identical to the interolated value.", LDPC_Interpolated_match);
+	}
+
 }
 
 
@@ -812,16 +827,23 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 	itpp::bvec zVec = tobvec(zIntVal);
 	//itpp::bvec parityVec = tobvec(parityVal);
 	itpp::bvec eulerVec = itpp::concat(xVec, yVec, zVec);
+	//itpp::bvec inputVec = itpp::concat(xVec, yVec, zVec,parityVec);
 
-	float weight = 0.9/(eulerbitwidth/3);
+//	static itpp::BPSK bpsk;
+
+
+
+	float weight = 32/(eulerbitwidth/3);
 
 	// We are not sure about our float data (LLR = 0)
 	for (int i = 0; i < eulerVec.length(); i++) {
 		int iWeight = i % (eulerbitwidth / 3);
+		if (iWeight >= MANTISSA_WIDTH)
+			iWeight += 2;
 		if (eulerVec[i] == 0)
-			encodedLLR[i] = 0.12 +  (float(iWeight) * weight);
+			encodedLLR[i] = 1  +(float(iWeight) * weight);
 		else // == 1
-			encodedLLR[i] = -0.12 -  (float(iWeight) * weight);
+			encodedLLR[i] = -1 -(float(iWeight) * weight);
 	}
 
 
@@ -837,7 +859,7 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 	}
 
 
-	return encodedLLR;
+	return encodedLLR; 
 	
 }
 

@@ -5,7 +5,7 @@
 #define PACKET_SIZE 512
 
 // Define number of parity bits used to protect data
-#define N_PARITY_BIT 16
+#define N_PARITY_BIT 64
 
 // Number of bits of data to be encoded and protected
 // Currently we are protecting 3 floats (x,y,z), which correspond to 4*3bytes = 4*3*8 bits = 96 bits
