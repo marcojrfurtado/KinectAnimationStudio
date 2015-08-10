@@ -41,10 +41,15 @@ p_fps(0)
 				// If it does not exist, let us generate parity
 				// it++ construsts Parity Matrix
 				const int ratio_weight = 1;
-				H.generate(N_DATA_BIT + N_PARITY_BIT, ratio_weight*1, ratio_weight* ( float(N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT ), "rand", "200 6");
+				itpp::LDPC_Parity_Regular tempP(N_DATA_BIT + N_PARITY_BIT, ratio_weight*1, ratio_weight* ( float(N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT ), "rand", "200 6");
 				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, 14, "rand", "200 6");
-				H.cycle_removal_MGW(6);
-				H.save_alist(parityPath);
+				tempP.cycle_removal_MGW(6);
+				tempP.save_alist(parityPath);
+
+
+				// FIX: ITPP generated matrix is not same as saved/loaded
+				itpp::RNG_reset();
+				H.load_alist(parityPath);
 			}
 			else {
 				H.load_alist(parityPath);
@@ -476,7 +481,7 @@ void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, int keyIndex,  FbxNode *
 /// </summary>
 void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex) {
 	float x, y, z;
-	itpp::LDPC_Code ldpc_encode(&H, &G);
+	static itpp::LDPC_Code ldpc_encode(&H, &G);
 	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
 
 
@@ -805,7 +810,7 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	UI_Printf("LDPC recovery has been performed. %d keyframes have been recovered.",recoveredCount);
 
 	if (LDPC_Interpolated_match > 0) {
-		UI_Printf(" WARNING: %d recovered keyframes are nearly identical to the interolated value.", LDPC_Interpolated_match);
+		UI_Printf(" WARNING: %d recovered keyframes are nearly identical to the interpolated value.", LDPC_Interpolated_match);
 	}
 
 }
@@ -841,9 +846,9 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 		if (iWeight >= MANTISSA_WIDTH)
 			iWeight += 2;
 		if (eulerVec[i] == 0)
-			encodedLLR[i] = 1  +(float(iWeight) * weight);
+			encodedLLR[i] =  1  +(float(iWeight) * weight);
 		else // == 1
-			encodedLLR[i] = -1 -(float(iWeight) * weight);
+			encodedLLR[i] = (-1) -(float(iWeight) * weight);
 	}
 
 
@@ -855,8 +860,10 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 		if (parityVal[i] == 0)
 			encodedLLR[i + eulerbitwidth] = std::numeric_limits<double>::infinity();
 		else // == 1
-			encodedLLR[i + eulerbitwidth] = -(std::numeric_limits<double>::infinity());
+			encodedLLR[i + eulerbitwidth] = -std::numeric_limits<double>::infinity();
 	}
+
+	std::string str = itpp::to_str(encodedLLR);
 
 
 	return encodedLLR; 
