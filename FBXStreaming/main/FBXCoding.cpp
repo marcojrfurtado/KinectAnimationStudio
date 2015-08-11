@@ -40,20 +40,20 @@ p_fps(0)
 			if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(parityPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
 				// If it does not exist, let us generate parity
 				// it++ construsts Parity Matrix
+				itpp::RNG_reset(4);
 				const int ratio_weight = 1;
 				itpp::LDPC_Parity_Regular tempP(N_DATA_BIT + N_PARITY_BIT, ratio_weight*1, ratio_weight* ( float(N_DATA_BIT + N_PARITY_BIT)/N_PARITY_BIT ), "rand", "200 6");
 				//H.generate(N_DATA_BIT + N_PARITY_BIT, 2, 14, "rand", "200 6");
 				tempP.cycle_removal_MGW(6);
 				tempP.save_alist(parityPath);
 
+			}
 
-				// FIX: ITPP generated matrix is not same as saved/loaded
-				itpp::RNG_reset();
-				H.load_alist(parityPath);
-			}
-			else {
-				H.load_alist(parityPath);
-			}
+			// Force RNG to be seeeded to common value before creating G
+			itpp::RNG_reset(0);
+
+			// FIX: ITPP generated matrix is not same as saved/loaded
+			H.load_alist(parityPath);
 
 			// it++ constructs Generator Matrix;
 			G.construct(&H);
@@ -838,13 +838,13 @@ itpp::vec FBXCoding::encodeCurveLDPC(float xIntVal, float yIntVal, float zIntVal
 
 
 
-	float weight = 32/(eulerbitwidth/3);
+	float weight = 64/(eulerbitwidth/3);
 
 	// We are not sure about our float data (LLR = 0)
 	for (int i = 0; i < eulerVec.length(); i++) {
 		int iWeight = i % (eulerbitwidth / 3);
 		if (iWeight >= MANTISSA_WIDTH)
-			iWeight += 2;
+			iWeight += 4;
 		if (eulerVec[i] == 0)
 			encodedLLR[i] =  1  +(float(iWeight) * weight);
 		else // == 1
