@@ -144,24 +144,31 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 			//UI_Printf("%d has been added to the vector", keyI);
 		}
 		if (keyIvec.size() == p_latencyWindow || keyI == (keyTotal-1)) {
-			
+			std::vector<int> shuffleKeyIndexArray(keyTotal*childCount);
+
+			for (int i = 0; i < childCount; i++) {
+				std::copy(keyIvec.begin(), keyIvec.end(), shuffleKeyIndexArray.begin() + i * keyIvec.size());
+			}
 			// If Interleaving is enabled shuffle vector
 			if (p_isInterleavingMode){
-				std::random_shuffle(keyIvec.begin(), keyIvec.end());
+				for (int i = 0; i < childCount; i++) {
+					std::random_shuffle(shuffleKeyIndexArray.begin() + i * keyIvec.size(), (shuffleKeyIndexArray.begin() + i * keyIvec.size()) + keyIvec.size());
+				}
 			}
-			for (std::vector<int>::iterator it = keyIvec.begin(); it != keyIvec.end(); ++it) {
+			for (int keyi = 0; keyi < keyIvec.size(); keyi++) {
 				//UI_Printf("now encoding key: %d", *it);
 				for (int ci = 0; ci < childCount; ci++) {
 					int oldPIndex = pIndex;
+					int shuffleKeyIndex = shuffleKeyIndexArray[ci * keyIvec.size() + keyi];
 
 					// Encode rotation curves
-					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, out_buf, pIndex, s, false);
+					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), shuffleKeyIndex, out_buf, pIndex, s, false);
 					if (oldPIndex == (Max_key_num - 1) && pIndex == 0) // packet has just been sent out
 						packetSentCount++;
 
 					oldPIndex = pIndex;
 					// Encode translation curves - if they exist
-					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), *it, out_buf, pIndex, s, true);
+					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), shuffleKeyIndex, out_buf, pIndex, s, true);
 					if (oldPIndex == (Max_key_num - 1) && pIndex == 0)
 						packetSentCount++;
 
