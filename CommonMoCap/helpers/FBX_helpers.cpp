@@ -485,3 +485,53 @@ void insertKeyCurve(FbxAnimCurve* tgtCurve, FbxTime keyTime ,float keyVal, bool 
 
 	tgtCurve->KeyModifyEnd();
 }
+
+/// <summary>
+///Returns true if node has any curves for which there are keys past kTime
+/// </summary>
+bool hasMoreKeys(FbxTime kTime, FbxNode *refNode, FbxAnimLayer *layer) {
+	
+	// translation curves
+	FbxAnimCurve *reftXCurve = refNode->LclTranslation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_X, false);
+	FbxAnimCurve *reftYCurve = refNode->LclTranslation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+	FbxAnimCurve *reftZCurve = refNode->LclTranslation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+
+
+	// rotation curves
+	FbxAnimCurve *refrXCurve = refNode->LclRotation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_X, false);
+	FbxAnimCurve *refrYCurve = refNode->LclRotation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+	FbxAnimCurve *refrZCurve = refNode->LclRotation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+
+	return hasMoreKeys(kTime,reftXCurve) || hasMoreKeys(kTime,reftYCurve) || hasMoreKeys(kTime,reftZCurve)
+		|| hasMoreKeys(kTime,refrXCurve) || hasMoreKeys(kTime,refrYCurve) || hasMoreKeys(kTime,refrZCurve);
+}
+
+bool hasMoreKeys(FbxTime kTime, FbxAnimCurve *curve) {
+	if (!curve) 
+		return false;
+
+	FbxAnimCurveKey last_key =  curve->KeyGet(curve->KeyGetCount() - 1);
+	FbxTime lastKeyTime = last_key.GetTime();
+
+	FbxLongLong kTimeMS = kTime.GetMilliSeconds(), lastTimeMS = lastKeyTime.GetMilliSeconds();
+
+	return (lastKeyTime > kTime) || (abs(kTimeMS - lastTimeMS) <= 1);
+
+}
+
+/// <summary>
+///Returns true if keys exist on curve at kTime
+/// </summary>
+bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime) {
+	double approxKeyIndex = curve->KeyFind(kTime);
+	approxKeyIndex = (approxKeyIndex > (curve->KeyGetCount() - 1)) ? (curve->KeyGetCount() - 1) : approxKeyIndex;
+
+	int roundedIndex = int(round(approxKeyIndex));
+
+	FbxAnimCurveKey curveKey = curve->KeyGet(roundedIndex);
+
+	FbxLongLong kTimeMS = kTime.GetMilliSeconds(), curveTimeMS = curveKey.GetTime().GetMilliSeconds();
+
+	return (abs(kTimeMS - curveTimeMS) <= 1);
+
+}

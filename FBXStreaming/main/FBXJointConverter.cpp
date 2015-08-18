@@ -81,7 +81,7 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, 
 /// <param name="markerSet">Markers to be used</param>
 /// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 /// <return>Pointer to our newly created skeleton</return>
-FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, bool enableGlobalTransformation, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
+FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, double fps, bool enableGlobalTransformation, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
 
 
 	// Find markers
@@ -125,9 +125,14 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 
 	if (pLayer) {
 		// For each key time,Animate new skeleton
-		for (auto &it : keyVec) {
-			animateJointsFromMarkers(pLayer, it, markerSet, newSkelNode, enableGlobalTransformation);
-		}
+		bool hasKeys;
+		int keyTimeIndex = 0;
+		FbxTime keyTime;
+		do {
+			keyTime.SetSecondDouble(double(keyTimeIndex) / fps);
+			hasKeys = animateJointsFromMarkers(pLayer, keyTime, markerSet, newSkelNode, enableGlobalTransformation);
+			keyTimeIndex++;
+		} while (hasKeys);
 	}
 
 
@@ -241,18 +246,24 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 /// <param name="mSet">Marker Set</param>
 /// <param name="tgtNode">Node to be animated</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
+bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
 	
-	
+
+
 	// Transformation to be passed on to our children. By default, it should be our own transformaiton
 	FbxAMatrix childReferenceTransformation = parentTrans;
-	
 
 	// Find corresponding marker
 	FbxNode *tgtMarkerNode = findMarker(mSet, tgtNode->GetNameOnly());
 
+	// Return value. False if this curve no longer has any keys past kTime
+	bool returnHasKeys = false;
+
 	// If marker has been found, animate it
 	if (tgtMarkerNode && isAnimatable(tgtNode) ) {
+
+		returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode,pLayer);
+
 		// Find transformation for current node. Extract transformation from marker in order to compute it.
 		FbxAMatrix markerTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
 		FbxAMatrix tgtTransformation;
@@ -265,7 +276,8 @@ void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 		}
 
 		// Apply transformation to node
-		applyTransformationMatrix(tgtNode, pLayer, kTime, tgtTransformation, false);
+		if ( returnHasKeys )
+			applyTransformationMatrix(tgtNode, pLayer, kTime, tgtTransformation, false, tgtMarkerNode);
 
 		// Pass information to children
 		childReferenceTransformation = markerTrans;
@@ -276,7 +288,9 @@ void FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 	//Repeat for children
 	int childCount = tgtNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		animateJointsFromMarkers(pLayer, kTime, mSet, tgtNode->GetChild(i), enableGlobalTransformation, childReferenceTransformation);
+		returnHasKeys |= animateJointsFromMarkers(pLayer, kTime, mSet, tgtNode->GetChild(i), enableGlobalTransformation, childReferenceTransformation);
+
+	return returnHasKeys;
 }
 
 /// <summary>
@@ -364,7 +378,7 @@ FbxAMatrix FBXJointConverter::extractTransformationMatrix(FbxNode *cNode, FbxAni
 /// <param name="kTime">Time for transformation</param>
 /// <param name="T">Transformation Matrix</param>
 /// <param name="forceMode">Boolean value that defines whether we force the creation of animation curves, in case they do not exist (defaults to true).</param>
-void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix &T, bool forceMode) {
+void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix &T, bool forceMode, FbxNode *refNode) {
 
 
 	// Extract rotation ( in euler) and translation from matrix
@@ -378,13 +392,25 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 	FbxAnimCurve *tYCurve = cNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, forceMode);
 	FbxAnimCurve *tZCurve = cNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, forceMode);
 
-	if (tXCurve)
+	bool applytXCurve = true, applytYCurve = true, applytZCurve = true;
+
+	if (refNode != NULL) {
+		FbxAnimCurve *reftXCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		FbxAnimCurve *reftYCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+		FbxAnimCurve *reftZCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+
+		applytXCurve = (reftXCurve) && (hasKeysAt(reftXCurve, kTime));
+		applytYCurve = (reftYCurve) && (hasKeysAt(reftYCurve, kTime));
+		applytZCurve = (reftZCurve) && (hasKeysAt(reftZCurve, kTime));
+	}
+
+	if (tXCurve && applytXCurve)
 		applyTransformationVectorToCurve(tXCurve, kTime, (float)translation[0], FbxAnimCurveDef::eInterpolationLinear);
 
-	if (tYCurve)
+	if (tYCurve && applytYCurve)
 		applyTransformationVectorToCurve(tYCurve, kTime, (float)translation[1], FbxAnimCurveDef::eInterpolationLinear);
 
-	if (tZCurve)
+	if (tZCurve && applytZCurve)
 		applyTransformationVectorToCurve(tZCurve, kTime, (float)translation[2], FbxAnimCurveDef::eInterpolationLinear);
 
 	// Repeat the same thing for rotation
@@ -393,16 +419,30 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 	FbxAnimCurve *rYCurve = cNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, forceMode);
 	FbxAnimCurve *rZCurve = cNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, forceMode);
 
-	if (rXCurve)
+	bool applyrXCurve = true, applyrYCurve = true, applyrZCurve = true;
+
+	if (refNode != NULL) {
+		FbxAnimCurve *refrXCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		FbxAnimCurve *refrYCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+		FbxAnimCurve *refrZCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+
+		applyrXCurve = (refrXCurve) && (hasKeysAt(refrXCurve, kTime));
+		applyrYCurve = (refrYCurve) && (hasKeysAt(refrYCurve, kTime));
+		applyrZCurve = (refrZCurve) && (hasKeysAt(refrZCurve, kTime));
+	}
+
+	if (rXCurve && applyrXCurve)
 		applyTransformationVectorToCurve(rXCurve, kTime, (float)rotationEuler[0], FbxAnimCurveDef::eInterpolationCubic);
 
-	if (rYCurve)
+	if (rYCurve && applyrYCurve)
 		applyTransformationVectorToCurve(rYCurve, kTime, (float)rotationEuler[1], FbxAnimCurveDef::eInterpolationCubic);
 
-	if (rZCurve)
+	if (rZCurve && applyrZCurve)
 		applyTransformationVectorToCurve(rZCurve, kTime, (float)rotationEuler[2], FbxAnimCurveDef::eInterpolationCubic);
 
 	// Finished creating keys
+
+
 
 }
 

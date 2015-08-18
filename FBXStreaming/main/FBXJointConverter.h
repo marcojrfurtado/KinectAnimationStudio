@@ -23,7 +23,7 @@ public:
 	/// <param name="newSkelName">Name of new skeleton to be created</param>
 	/// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 	/// <return>Pointer to our newly created skeleton</return>
-	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, bool enableGlobalTransformation = true, FbxNode *markerSet = NULL, std::vector<FbxTime> &keyVec = c_emptyVector);
+	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, double fps, bool enableGlobalTransformation = true, FbxNode *markerSet = NULL, std::vector<FbxTime> &keyVec = c_emptyVector);
 
 	/// <summary>
 	/// Extract key times from curve, and add them to provided vector
@@ -84,7 +84,7 @@ private:
 	/// <param name="mSet">Marker Set</param>
 	/// <param name="tgtNode">Node to be animated</param>
 	/// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-	static void animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans = c_mIdentity);
+	static bool animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans = c_mIdentity);
 
 	/// <summary>
 	/// Recursive function that adds a positional marker for each joint in the hierarchy
@@ -117,7 +117,7 @@ private:
 	/// <param name="kTime">Time for transformation</param>
 	/// <param name="T">Transformation Matrix</param>
 	/// <param name="forceMode">Boolean value that defines whether we force the creation of animation curves, in case they do not exist (defaults to true).</param>
-	static void applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix &T, bool forceMode = true);
+	static void applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix &T, bool forceMode = true, FbxNode *refNode = NULL);
 
 
 	/// <summary>

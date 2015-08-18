@@ -67,6 +67,11 @@ public:
 	/// </summary>
 	bool isLDPCEnabled() { return p_enableLDPC;  }
 
+	/// <summary>
+	/// returns fps
+	/// </summary>
+	double get_fps() { return p_fps; }
+
 private:
 	
 	// Private attributes

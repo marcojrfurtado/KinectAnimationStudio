@@ -400,7 +400,7 @@ void FBXTransmitter::backgroundListenServer() {
 	
 	UI_Printf("Ready to convert data to a hierarchical skeleton.");
 
-	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *) skel->GetName(), p_globalTransformationMode);
+	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *)skel->GetName(), p_coding.get_fps(), p_globalTransformationMode);
 
 	UI_Printf("Data has been converted.");
 	// Save Scene

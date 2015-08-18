@@ -87,3 +87,21 @@ double computeOffsetTime(FbxLongLong currentTime, int offset, double fps);
 /// Inserts new key into animation curve
 /// </summary>
 void insertKeyCurve(FbxAnimCurve* tgtCurve, FbxTime keyTime, float keyVal, bool isTranslation);
+
+
+
+
+/// <summary>
+///Returns true if node has any curves for which there are keys past kTime
+/// </summary>
+bool hasMoreKeys(FbxTime kTime, FbxNode *refNode, FbxAnimLayer *layer);
+
+/// <summary>
+///Returns true if curve has keys past kTime
+/// </summary>
+bool hasMoreKeys(FbxTime kTime, FbxAnimCurve *curve);
+
+/// <summary>
+///Returns true if keys exist on curve at kTime
+/// </summary>
+bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime);
