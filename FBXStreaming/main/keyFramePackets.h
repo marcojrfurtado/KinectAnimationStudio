@@ -24,6 +24,7 @@
 
 struct PACKET {
 	short joint_id;
+	float a[3], b[3], c[3];
 	float x, y, z;
 	FbxLongLong time;
 };

@@ -388,9 +388,9 @@ void applyUnrollFilterHierarchically(FbxAnimCurveFilterUnroll &filter, FbxNode *
 int getKeyCount(FbxNode *tgtNode, FbxScene *lScene) {
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
-	FbxAnimCurve *rotCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	FbxAnimCurve *transCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 
-	int keyTotal = rotCurve->KeyGetCount();
+	int keyTotal = transCurve->KeyGetCount();
 
 	return keyTotal;
 }
@@ -507,7 +507,7 @@ bool hasMoreKeys(FbxTime kTime, FbxNode *refNode, FbxAnimLayer *layer) {
 }
 
 bool hasMoreKeys(FbxTime kTime, FbxAnimCurve *curve) {
-	if (!curve) 
+	if (!curve || (curve->KeyGetCount() == 0)) 
 		return false;
 
 	FbxAnimCurveKey last_key =  curve->KeyGet(curve->KeyGetCount() - 1);
@@ -534,4 +534,96 @@ bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime) {
 
 	return (abs(kTimeMS - curveTimeMS) <= 1);
 
+}
+
+bool hasKeysAt(FbxAnimLayer *pLayer, FbxNode *tgtNode, FbxTime kTime) {
+	if (tgtNode->GetChildCount() == 0)
+		return false;
+	else {
+		FbxAnimCurve *xCurve = tgtNode->GetChild(0)->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		return hasKeysAt(xCurve, kTime);
+	}
+}
+
+FbxDouble3 getKeyValueFromMarker(FbxNode *vMarker, FbxAnimLayer *pLayer, int keyIndex) {
+
+	FbxAnimCurve *xCurve = vMarker->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+	FbxAnimCurve *yCurve = vMarker->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+	FbxAnimCurve *zCurve = vMarker->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+	FbxDouble3 retVec;
+
+	if (xCurve)
+		retVec[0] = xCurve->KeyGet(keyIndex).GetValue();
+
+	if (yCurve)
+		retVec[1] = yCurve->KeyGet(keyIndex).GetValue();
+
+	if (zCurve)
+		retVec[2] = zCurve->KeyGet(keyIndex).GetValue();
+
+	return retVec;
+}
+
+FbxTime getKeyTimeFromMarker(FbxNode *vMarker, FbxAnimLayer *pLayer, int keyIndex) {
+
+	FbxAnimCurve *xCurve = vMarker->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+
+	return xCurve->KeyGet(keyIndex).GetTime();
+
+}
+
+FbxTime getKeyTimeFromCurve(FbxAnimCurve*curve, int keyIndex) {
+	return curve->KeyGet(keyIndex).GetTime();
+}
+
+
+void applyTransformationVectorToCurve(FbxAnimCurve *tgtCurve, FbxTime kTime, float kVal, FbxAnimCurveDef::EInterpolationType interpolationType) {
+	// Start modifications
+	tgtCurve->KeyModifyBegin();
+
+	// Add a new key
+	int keyIndex = tgtCurve->KeyAdd(kTime);
+
+
+	// Set interpolation
+	tgtCurve->KeySetInterpolation(keyIndex, interpolationType);
+
+	// Define value
+	tgtCurve->KeySetValue(keyIndex, kVal);
+
+
+	// End modifications
+	tgtCurve->KeyModifyEnd();
+
+}
+
+FbxMatrix relocateTranslation(FbxMatrix inputM) {
+
+	FbxVector4 empty(0,0,0);
+	FbxVector4 translation = inputM.GetRow(3);
+
+
+	if (translation != empty) {
+		inputM.SetColumn(3,translation);
+		inputM.SetRow(3, empty);
+	}
+	else {
+		translation = inputM.GetColumn(3);
+		inputM.SetColumn(3, empty);
+		inputM.SetRow(3, translation);
+	}
+
+	return inputM;
+}
+
+
+FbxAMatrix toAffine(FbxMatrix m) {
+	FbxAMatrix returnM;
+
+	returnM.SetRow(0,m.GetRow(0));
+	returnM.SetRow(1, m.GetRow(1));
+	returnM.SetRow(2, m.GetRow(2));
+	returnM.SetRow(3, m.GetRow(3));
+	return returnM;
 }

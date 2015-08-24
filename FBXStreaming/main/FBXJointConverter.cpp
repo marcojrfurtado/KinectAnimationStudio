@@ -95,7 +95,7 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 	}
 
 	// If not initialized
-	if (keyVec.size() == 0) {
+	/*if (keyVec.size() == 0) {
 
 		// Get Animation Layer
 		FbxAnimStack *pStack = pScene->GetCurrentAnimationStack();
@@ -105,7 +105,7 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 		// Collect keyframe times
 		FbxAnimCurve *rootTranslationCurveX = markerSet->GetChild(0)->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
 		extractKeyTimesFromCurve(rootTranslationCurveX, keyVec);
-	}
+	}*/
 
 	/// Create a new skeleton
 	FbxSkeleton *newSkelAttribute = FbxSkeleton::Create(pScene, newSkelName);
@@ -176,6 +176,9 @@ int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerS
 		// Initialize curves, based on reference node
 		if (pLayer) {
 			copyCurveInformation(pLayer, cNode, markerNode);
+			applyTransformationMatrix(markerNode, pLayer, FbxTime(0), c_mIdentity, false);
+			addVirtualMarkerPosition(pLayer, markerNode, pScene);
+			
 		}
 
 		// Add to hierarchy
@@ -224,7 +227,8 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 
 		// If marker has been found, apply transformation to it
 		if (cMarkerNode) {
-			applyTransformationMatrix(cMarkerNode, pLayer, kTime, cTransformation, false);
+			//applyTransformationMatrix(cMarkerNode, pLayer, kTime, cTransformation, false);
+			applyTransformationVirtualMarkers(cMarkerNode, pLayer, kTime, cTransformation);
 		}
 	}
 	
@@ -262,12 +266,17 @@ bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 	// If marker has been found, animate it
 	if (tgtMarkerNode && isAnimatable(tgtNode) ) {
 
-		returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode,pLayer);
+		returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode->GetChild(0),pLayer);
 
 		// Find transformation for current node. Extract transformation from marker in order to compute it.
-		FbxAMatrix markerTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
+		//FbxAMatrix markerTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
+		FbxAMatrix markerTrans = extractTransformationFromVirtualMarkers(tgtMarkerNode, pLayer, kTime);
 		FbxAMatrix tgtTransformation;
 		if (enableGlobalTransformation) {
+			// Compute absolute position of marker
+//			if (parentTrans != c_mIdentity)
+//				markerTrans.SetTOnly(parentTrans.GetT());
+
 			FbxAMatrix invParentTrans = parentTrans.Inverse();
 			tgtTransformation = invParentTrans *  markerTrans; // Marker has global trans
 		}
@@ -323,7 +332,7 @@ void FBXJointConverter::extractKeyTimesFromCurve(FbxAnimCurve *srcCurve, std::ve
 /// <return>Transformation matrix</return>
 FbxAMatrix FBXJointConverter::extractTransformationMatrix(FbxNode *cNode, FbxAnimLayer *pLayer, FbxTime kTime) {
 
-
+	
 	// Result matrix to be returned
 	FbxAMatrix resultMat;
 
@@ -399,9 +408,9 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 		FbxAnimCurve *reftYCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
 		FbxAnimCurve *reftZCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
 
-		applytXCurve = (reftXCurve) && (hasKeysAt(reftXCurve, kTime));
-		applytYCurve = (reftYCurve) && (hasKeysAt(reftYCurve, kTime));
-		applytZCurve = (reftZCurve) && (hasKeysAt(reftZCurve, kTime));
+		applytXCurve = (reftXCurve);// && (hasKeysAt(pLayer, refNode, kTime));
+		applytYCurve = (reftYCurve);// && (hasKeysAt(pLayer, refNode, kTime));
+		applytZCurve = (reftZCurve);// && (hasKeysAt(pLayer, refNode, kTime));
 	}
 
 	if (tXCurve && applytXCurve)
@@ -426,9 +435,9 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 		FbxAnimCurve *refrYCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
 		FbxAnimCurve *refrZCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
 
-		applyrXCurve = (refrXCurve) && (hasKeysAt(refrXCurve, kTime));
-		applyrYCurve = (refrYCurve) && (hasKeysAt(refrYCurve, kTime));
-		applyrZCurve = (refrZCurve) && (hasKeysAt(refrZCurve, kTime));
+		applyrXCurve = (refrXCurve);// && (hasKeysAt(pLayer, refNode, kTime));
+		applyrYCurve = (refrYCurve);// && (hasKeysAt(pLayer, refNode, kTime));
+		applyrZCurve = (refrZCurve);// && (hasKeysAt(pLayer, refNode, kTime));
 	}
 
 	if (rXCurve && applyrXCurve)
@@ -544,25 +553,7 @@ FbxNode* FBXJointConverter::findMarker(FbxNode *mSet, const char *refName) {
 /// <param name="kTime">Time for transformation</param>
 /// <param name="kVal">Key value</param>
 /// <param name="interpolationType">Interpolation to be used by key</param>
-void FBXJointConverter::applyTransformationVectorToCurve(FbxAnimCurve *tgtCurve, FbxTime kTime, float kVal, FbxAnimCurveDef::EInterpolationType interpolationType) {
-	// Start modifications
-	tgtCurve->KeyModifyBegin();
 
-	// Add a new key
-	int keyIndex = tgtCurve->KeyAdd(kTime);
-
-
-	// Set interpolation
-	tgtCurve->KeySetInterpolation(keyIndex, interpolationType);
-
-	// Define value
-	tgtCurve->KeySetValue(keyIndex, kVal);
-
-
-	// End modifications
-	tgtCurve->KeyModifyEnd();
-
-}
 
 /// <summary>
 /// Copy curve information from one node to another. Keys are not copied, only curves are initialized.
@@ -572,8 +563,8 @@ void FBXJointConverter::applyTransformationVectorToCurve(FbxAnimCurve *tgtCurve,
 /// <param name="tgtNode">Node for which information is copied to</param>
 void FBXJointConverter::copyCurveInformation(FbxAnimLayer *pLayer, FbxNode *srcNode, FbxNode *tgtNode) {
 	FbxAnimCurve *oriCurveTX = srcNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X);
-	FbxAnimCurve *oriCurveTY = srcNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X);
-	FbxAnimCurve *oriCurveTZ = srcNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	FbxAnimCurve *oriCurveTY = srcNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+	FbxAnimCurve *oriCurveTZ = srcNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z);
 	if (oriCurveTX)
 		tgtNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
 	if (oriCurveTY)
@@ -582,8 +573,8 @@ void FBXJointConverter::copyCurveInformation(FbxAnimLayer *pLayer, FbxNode *srcN
 		tgtNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
 	FbxAnimCurve *oriCurveRX = srcNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X);
-	FbxAnimCurve *oriCurveRY = srcNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X);
-	FbxAnimCurve *oriCurveRZ = srcNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	FbxAnimCurve *oriCurveRY = srcNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+	FbxAnimCurve *oriCurveRZ = srcNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z);
 	if (oriCurveRX)
 		tgtNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
 	if (oriCurveRY)
@@ -628,4 +619,133 @@ FbxNode* FBXJointConverter::findAnySkeleton(FbxScene *pScene) {
 		}
 	} 
 	return NULL;
+}
+
+void FBXJointConverter::addVirtualMarkerPosition(FbxAnimLayer *pLayer, FbxNode *markerNode, FbxScene *pScene) {
+
+
+	if (isAnimatable(markerNode)) {
+		FbxMarker *cMarkerAttribute = FbxMarker::Create(pScene, "a");
+		FbxNode *a = FbxNode::Create(pScene, "a");
+		a->SetNameSpace(c_markerPrefix);
+		a->SetNodeAttribute(cMarkerAttribute);
+
+		cMarkerAttribute = FbxMarker::Create(pScene, "b");
+		FbxNode *b = FbxNode::Create(pScene, "b");
+		b->SetNameSpace(c_markerPrefix);
+		b->SetNodeAttribute(cMarkerAttribute);
+
+		cMarkerAttribute = FbxMarker::Create(pScene, "c");
+		FbxNode *c = FbxNode::Create(pScene, "c");
+		c->SetNameSpace(c_markerPrefix);
+		c->SetNodeAttribute(cMarkerAttribute);
+
+		markerNode->AddChild(a);
+		markerNode->AddChild(b);
+		markerNode->AddChild(c);
+
+		a->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+		a->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+		a->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+		b->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+		b->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+		b->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+		c->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+		c->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+		c->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+
+	}
+}
+
+
+void FBXJointConverter::applyTransformationVirtualMarkers(FbxNode *cMarkerNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix cTransformation) {
+	static FbxMatrix conv = createConvMatrix();
+
+	FbxMatrix transformM = cTransformation;
+
+	FbxMatrix markersM;
+
+	transformM = relocateTranslation(transformM);
+	//markersM = cTransformation * conv ;
+	markersM = conv * transformM;
+
+	for (int i = 0; i < 3; i++) {
+		int rowIndex = (i == 2) ? i + 1 : i;
+		FbxNode *nodeI = cMarkerNode->GetChild(i);
+		//FbxVector4 rowVal = markersM.GetRow(rowIndex);
+		FbxVector4 rowVal = markersM.GetColumn(rowIndex);
+
+		
+		FbxAnimCurve *transXCurve = nodeI->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+		FbxAnimCurve *transYCurve = nodeI->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+		FbxAnimCurve *transZCurve = nodeI->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+
+		applyTransformationVectorToCurve(transXCurve, kTime, rowVal[0], FbxAnimCurveDef::eInterpolationCubic);
+		applyTransformationVectorToCurve(transYCurve, kTime, rowVal[1], FbxAnimCurveDef::eInterpolationCubic);
+		applyTransformationVectorToCurve(transZCurve, kTime, rowVal[2], FbxAnimCurveDef::eInterpolationCubic);
+
+
+	}
+
+}
+
+FbxAMatrix FBXJointConverter::extractTransformationFromVirtualMarkers(FbxNode *tgtMarkerNode, FbxAnimLayer *pLayer, FbxTime kTime) {
+	FbxMatrix resultMatrix, markerMatrix;
+
+	static FbxMatrix inverseConvMatrix = createConvInverse();
+
+	FbxVector4 a = extractTransVectorFromCurves(tgtMarkerNode->GetChild(0), pLayer, kTime);
+	FbxVector4 b = extractTransVectorFromCurves(tgtMarkerNode->GetChild(1), pLayer, kTime);
+	FbxVector4 c = extractTransVectorFromCurves(tgtMarkerNode->GetChild(2), pLayer, kTime);
+
+	//FbxVector4 d = a.CrossProduct(b);
+	FbxVector4 d = (a - c).CrossProduct(b - c) + c;
+	d[3] -= 1;
+
+	/*markerMatrix.SetRow(0 ,a);
+	markerMatrix.SetRow(1, b);
+	markerMatrix.SetRow(2, d);
+	markerMatrix.SetRow(3, c);*/
+	markerMatrix.SetColumn(0,a);
+	markerMatrix.SetColumn(1,b);
+	markerMatrix.SetColumn(2, d);
+	markerMatrix.SetColumn(3, c);
+
+
+
+	resultMatrix = inverseConvMatrix * markerMatrix;
+
+
+	resultMatrix = relocateTranslation(resultMatrix);
+
+	
+
+	return toAffine(resultMatrix);
+
+
+}
+
+FbxDouble3 	FBXJointConverter::extractTransVectorFromCurves(FbxNode *node, FbxAnimLayer *pLayer, FbxTime kTime) {
+
+	FbxAnimCurve *xCurve = node->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+	FbxAnimCurve *yCurve = node->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+	FbxAnimCurve *zCurve = node->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+	FbxDouble3 retVec;
+
+	if (xCurve)
+		retVec[0] = xCurve->Evaluate(kTime);
+
+	if (yCurve)
+		retVec[1] = yCurve->Evaluate(kTime);
+
+	if (zCurve)
+		retVec[2] = zCurve->Evaluate(kTime);
+
+	return retVec;
+
 }

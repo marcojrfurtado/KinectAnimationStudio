@@ -142,14 +142,7 @@ private:
 	/// <param name="refName">Reference name for marker</param>
 	static FbxNode* findMarker(FbxNode *mSet, const char *refName);
 
-	/// <summary>
-	/// Creates key on Curve based on transformation vector
-	/// </summary>
-	/// <param name="tgtCurve">Fbx Curve to have key added to</param>
-	/// <param name="kTime">Time for transformation</param>
-	/// <param name="kVal">Key value</param>
-	/// <param name="interpolationType">Interpolation to be used by key ( defaults to linear)</param>
-	static void applyTransformationVectorToCurve(FbxAnimCurve *tgtCurve, FbxTime kTime, float kVal, FbxAnimCurveDef::EInterpolationType interpolationType = FbxAnimCurveDef::eInterpolationLinear);
+
 
 	/// <summary>
 	/// Copy curve information from one node to another. Keys are not copied, only curves are initialized.
@@ -158,4 +151,44 @@ private:
 	/// <param name="srcNode">Node from which information is extracted</param>
 	/// <param name="tgtNode">Node for which information is copied to</param>
 	static void copyCurveInformation(FbxAnimLayer *pLayer, FbxNode *srcNode, FbxNode *tgtNode);
+
+	
+	/// <summary>
+	/// Add virtual markers.
+	/// </summary>
+	static void addVirtualMarkerPosition(FbxAnimLayer *pLayer, FbxNode *markerNode, FbxScene *pScene);
+
+	static void applyTransformationVirtualMarkers(FbxNode *cMarkerNode, FbxAnimLayer *pLayer, FbxTime kTime, FbxAMatrix cTransformation);
+
+	static FbxMatrix createConvMatrix() {
+		FbxMatrix conv;
+		/*conv.SetRow(0, FbxVector4(1, 0, 0, 1));
+		conv.SetRow(1, FbxVector4(0, 1, 0, 1));
+		conv.SetRow(2, FbxVector4(0, 0, 0, 0));
+		conv.SetRow(3, FbxVector4(0, 0, 0, 1));*/
+		conv.SetRow(0, FbxVector4(1, 0, 0, 0));
+		conv.SetRow(1, FbxVector4(0, 1, 0, 0));
+		conv.SetRow(2, FbxVector4(0, 0, 0, 0));
+		conv.SetRow(3, FbxVector4(1, 1, 0, 1));
+		return conv;
+	}
+
+	static FbxAMatrix extractTransformationFromVirtualMarkers(FbxNode *tgtMarkerNode, FbxAnimLayer *pLayer, FbxTime kTime);
+
+	static FbxDouble3 extractTransVectorFromCurves(FbxNode *node, FbxAnimLayer *pLayer, FbxTime kTime);
+
+	static FbxMatrix createConvInverse() {
+		FbxMatrix convInverse;
+		/*convInverse.SetRow(0, FbxVector4(1, 0, 0, -1));
+		convInverse.SetRow(1, FbxVector4(0, 1, 0, -1));
+		convInverse.SetRow(2, FbxVector4(0, 0, 1, -1));
+		convInverse.SetRow(3, FbxVector4(0, 0, 0, 1));*/
+		convInverse.SetRow(0, FbxVector4(1, 0, 0, 0));
+		convInverse.SetRow(1, FbxVector4(0, 1, 0, 0));
+		convInverse.SetRow(2, FbxVector4(0, 0, 0, 0));
+		convInverse.SetRow(3, FbxVector4(-1, -1, 0, 1));
+
+
+		return convInverse;
+	}
 };

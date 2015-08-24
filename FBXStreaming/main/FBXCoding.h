@@ -136,12 +136,16 @@ private:
 	/// <param name="frag">Fragment to be decoded</param>
 	void decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag);
 
+	
+
 	/// <summary>
 	/// Decode packet fragment
 	/// </summary>
 	/// <param name="animLayer">FBX Animation layer</param>
 	/// <param name="frag">Fragment to be decoded</param>
 	void decodeFragment(FbxAnimLayer *animLayer,  PACKET &frag);
+
+	void decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, PACKET &frag);
 
 	/// <summary>
 	/// Encodes keys for curves from a given node
@@ -168,6 +172,8 @@ private:
 	/// <param name="isTranslation">Are these translation curves?</param>
 	void encodeCommonKeyAttributes(PACKET &outP, int keyIndex, FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation = false);
 
+
+	void encodeCommonKeyAttributes(PACKET &outP, FbxNode *mNode, FbxTime keyTime, FbxDouble3 aVal, FbxDouble3 bVal, FbxDouble3 cVal);
 	/// <summary>
 	/// Encodes LDPC parity, storing it in a PACKET fragment
 	/// </summary>

@@ -105,3 +105,24 @@ bool hasMoreKeys(FbxTime kTime, FbxAnimCurve *curve);
 ///Returns true if keys exist on curve at kTime
 /// </summary>
 bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime);
+
+bool hasKeysAt(FbxAnimLayer *pLayer, FbxNode *tgtNode, FbxTime kTime);
+
+FbxDouble3 getKeyValueFromMarker(FbxNode *vMarker, FbxAnimLayer *pLayer, int keyIndex);
+FbxTime getKeyTimeFromMarker(FbxNode *vMarker, FbxAnimLayer *pLayer, int keyIndex);
+
+FbxTime getKeyTimeFromCurve(FbxAnimCurve*curve, int keyIndex);
+
+/// <summary>
+/// Creates key on Curve based on transformation vector
+/// </summary>
+/// <param name="tgtCurve">Fbx Curve to have key added to</param>
+/// <param name="kTime">Time for transformation</param>
+/// <param name="kVal">Key value</param>
+/// <param name="interpolationType">Interpolation to be used by key ( defaults to linear)</param>
+void applyTransformationVectorToCurve(FbxAnimCurve *tgtCurve, FbxTime kTime, float kVal, FbxAnimCurveDef::EInterpolationType interpolationType);
+
+
+FbxMatrix relocateTranslation(FbxMatrix inputM);
+
+FbxAMatrix toAffine(FbxMatrix m);

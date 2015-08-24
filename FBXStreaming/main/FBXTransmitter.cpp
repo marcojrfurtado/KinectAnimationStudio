@@ -140,9 +140,7 @@ void FBXTransmitter::transmit() {
 		// Convert to positional markers ( markers are added to the scene )
 		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode);
 
-		// Apply unroll filter to ir
-		FbxAnimCurveFilterUnroll postProcFilter;
-		applyUnrollFilterHierarchically(postProcFilter, markerSet);
+
 
 
 		// Encode file on the background
@@ -395,12 +393,17 @@ void FBXTransmitter::backgroundListenServer() {
 		p_coding.startLDPCRecovery(lScene );
 	}
 	
-	
+
 	
 	
 	UI_Printf("Ready to convert data to a hierarchical skeleton.");
 
-	FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *)skel->GetName(), p_coding.get_fps(), p_globalTransformationMode);
+	FbxNode *newSkel = FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *)skel->GetName(), p_coding.get_fps(), p_globalTransformationMode);
+
+	// Apply unroll filter to ir
+	//UI_Printf("Applying post processing filter.");
+	//FbxAnimCurveFilterUnroll postProcFilter;
+	//applyUnrollFilterHierarchically(postProcFilter, newSkel);
 
 	UI_Printf("Data has been converted.");
 	// Save Scene
@@ -658,7 +661,10 @@ void FBXTransmitter::createModelBaseFile() {
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, true);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, false);
+
+		FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip3", 60, true, markerSet);
+
 
 		break;
 	}
