@@ -661,9 +661,9 @@ void FBXTransmitter::createModelBaseFile() {
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, false);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, true);
 
-		FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip3", 60, true, markerSet);
+		//FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip3", 60, true, markerSet);
 
 
 		break;

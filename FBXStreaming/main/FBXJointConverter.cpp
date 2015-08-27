@@ -710,8 +710,8 @@ FbxAMatrix FBXJointConverter::extractTransformationFromVirtualMarkers(FbxNode *t
 	markerMatrix.SetRow(1, b);
 	markerMatrix.SetRow(2, d);
 	markerMatrix.SetRow(3, c);*/
-	markerMatrix.SetColumn(0,a);
-	markerMatrix.SetColumn(1,b);
+	markerMatrix.SetColumn(0, a);
+	markerMatrix.SetColumn(1, b);
 	markerMatrix.SetColumn(2, d);
 	markerMatrix.SetColumn(3, c);
 

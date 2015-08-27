@@ -185,8 +185,8 @@ private:
 		convInverse.SetRow(3, FbxVector4(0, 0, 0, 1));*/
 		convInverse.SetRow(0, FbxVector4(1, 0, 0, 0));
 		convInverse.SetRow(1, FbxVector4(0, 1, 0, 0));
-		convInverse.SetRow(2, FbxVector4(0, 0, 0, 0));
-		convInverse.SetRow(3, FbxVector4(-1, -1, 0, 1));
+		convInverse.SetRow(2, FbxVector4(0, 0, 1, 0));
+		convInverse.SetRow(3, FbxVector4(-1, -1, -1, 1));
 
 
 		return convInverse;
