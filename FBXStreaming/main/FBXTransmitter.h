@@ -106,6 +106,7 @@ public:
 	/// </summary>
 	void printSetupDetails() {
 		UI_Printf(" Transmitter Initialization: Global Transformation mode set to %d", p_globalTransformationMode);
+		UI_Printf(" Transmitter Initialization: Enable Virtual Markers %d", p_enableVirtualMarkers);
 		p_coding.printSetupDetails();
 	}
 private:
@@ -152,6 +153,9 @@ private:
 
 
 	FBXCoding p_coding;
+
+	// Enable virutal Markers
+	bool p_enableVirtualMarkers;
 
 	// Private methods
 

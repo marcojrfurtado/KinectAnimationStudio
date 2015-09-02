@@ -24,11 +24,18 @@
 
 struct PACKET {
 	short joint_id;
-	float a[3], b[3], c[3];
-	float x, y, z;
 	FbxLongLong time;
+	bool isTranslation;
 };
 
-struct PACKET_LDPC : PACKET {
+struct REGULAR_PACKET : PACKET {
+	float x, y, z;
+};
+
+struct VIRTUAL_MARKER_PACKET : PACKET {
+	float a[3], b[3], c[3];
+};
+
+struct PACKET_LDPC : REGULAR_PACKET {
 	std::bitset<N_PARITY_BIT> bits;
 };

@@ -29,6 +29,13 @@ p_globalTransformationMode(true)
 	if (globalTransformation.compare("ERROR") != 0) {
 		std::istringstream(globalTransformation) >> p_globalTransformationMode;
 	}
+
+	std::string enableVMarker = parser.getParameter(ENABLE_VIRTUAL_MARKER);
+	if (enableVMarker.compare("ERROR") != 0) {
+		std::istringstream(enableVMarker) >> p_enableVirtualMarkers;
+	}
+
+	p_coding.set_enable_vmarker(p_enableVirtualMarkers);
 }
 
 /// <summary>
@@ -134,11 +141,13 @@ void FBXTransmitter::transmit() {
 		FbxNodeAttribute::EType pNodeAttType = pNode->GetNodeAttribute()->GetAttributeType();
 
 		// If not skeleton root, ignore node
-		if (pNodeAttType != FbxNodeAttribute::EType::eSkeleton)
+	//	if (pNodeAttType != FbxNodeAttribute::EType::eSkeleton)
+	//		continue;
+		if (pNodeAttType != FbxNodeAttribute::EType::eNull)
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, p_enableVirtualMarkers);
 
 
 
@@ -398,7 +407,7 @@ void FBXTransmitter::backgroundListenServer() {
 	
 	UI_Printf("Ready to convert data to a hierarchical skeleton.");
 
-	FbxNode *newSkel = FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *)skel->GetName(), p_coding.get_fps(), p_globalTransformationMode);
+	FbxNode *newSkel = FBXJointConverter::fromAbsoluteMarkers(lScene, skel, (char *)skel->GetName(), p_coding.get_fps(), p_globalTransformationMode,p_enableVirtualMarkers);
 
 	// Apply unroll filter to ir
 	//UI_Printf("Applying post processing filter.");
@@ -657,11 +666,11 @@ void FBXTransmitter::createModelBaseFile() {
 		FbxNodeAttribute::EType pNodeAttType = pNode->GetNodeAttribute()->GetAttributeType();
 
 		// If not skeleton root, ignore node
-		if (pNodeAttType != FbxNodeAttribute::EType::eSkeleton)
+		if (pNodeAttType != FbxNodeAttribute::EType::eNull)
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
-		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, true);
+		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, p_enableVirtualMarkers,true);
 
 		//FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip3", 60, true, markerSet);
 

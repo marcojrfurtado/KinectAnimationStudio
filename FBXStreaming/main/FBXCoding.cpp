@@ -29,6 +29,7 @@ p_fps(0)
 		std::istringstream(interleave) >> p_isInterleavingMode;
 	}
 
+
 	if (ldpc.compare("ERROR") != 0) {
 		std::istringstream(ldpc) >> p_enableLDPC;
 
@@ -103,11 +104,17 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 		fragmentSize = sizeof(PACKET_LDPC);
 		out_buf = (char *) new PACKET_LDPC[Max_key_num];
 	}
+	else if (p_enableVirtualMarkers) {
+		// Maximum number of keys a package can store
+		Max_key_num = PACKET_SIZE / sizeof(VIRTUAL_MARKER_PACKET);
+		fragmentSize = sizeof(VIRTUAL_MARKER_PACKET);
+		out_buf = (char *) new VIRTUAL_MARKER_PACKET[Max_key_num];
+	}
 	else {
 		// Maximum number of keys a package can store
-		Max_key_num = PACKET_SIZE / sizeof(PACKET);
-		fragmentSize = sizeof(PACKET);
-		out_buf = (char *) new PACKET[Max_key_num];
+		Max_key_num = PACKET_SIZE / sizeof(REGULAR_PACKET);
+		fragmentSize = sizeof(REGULAR_PACKET);
+		out_buf = (char *) new REGULAR_PACKET[Max_key_num];
 	}
 
 	int pIndex = 0;
@@ -117,7 +124,7 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 	keyIvec.reserve(p_latencyWindow);
 
 	// We are ignoring the key at index 0, as this
-	int keyI = 1;
+	int keyI = 0;
 
 	// Number of packets sent
 	int packetSentCount = 0;
@@ -125,7 +132,7 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
 
-	int keyTotal = getKeyCount(markerSet->GetChild(0)->GetChild(0), lScene);
+	int keyTotal = (p_enableVirtualMarkers) ? getKeyCount(markerSet->GetChild(0)->GetChild(0), lScene) : getKeyCount(markerSet->GetChild(0), lScene);
 
 	int childCount = markerSet->GetChildCount();
 
@@ -233,11 +240,16 @@ void FBXCoding::decodePacket(FbxScene *lScene, char *p, int numBytesRecv) {
 
 	// Calculate number of keyframes within packet
 	int num_key_received;
-	if (!isLDPCEnabled()) {
-		num_key_received = numBytesRecv / sizeof(PACKET);
-	}
-	else {
+	if (isLDPCEnabled()) {
 		num_key_received = numBytesRecv / sizeof(PACKET_LDPC);
+
+	}
+	else if (p_enableVirtualMarkers) {
+		num_key_received = numBytesRecv / sizeof(VIRTUAL_MARKER_PACKET);
+
+	}		
+	else {
+		num_key_received = numBytesRecv / sizeof(REGULAR_PACKET);
 	}
 
 
@@ -245,8 +257,11 @@ void FBXCoding::decodePacket(FbxScene *lScene, char *p, int numBytesRecv) {
 	// Iterate on incoming packets
 	for (int i = 0; i < num_key_received; i++) {
 		if (!isLDPCEnabled()) {
-			//decodeFragment(animLayer, ((PACKET *)p)[i]);
-			decodeVirtualMarkersFrag(animLayer, ((PACKET *)p)[i]);
+
+			if ( p_enableVirtualMarkers )
+				decodeVirtualMarkersFrag(animLayer, ((VIRTUAL_MARKER_PACKET *)p)[i]);
+			else
+				decodeFragment(animLayer, ((REGULAR_PACKET *)p)[i]);
 		}
 		else {
 			decodeLDPCFragment(animLayer, ((PACKET_LDPC *)p)[i]);
@@ -286,7 +301,7 @@ void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) 
 /// <param name="animLayer">FBX Animation layer</param>
 /// <param name="jointMap">Map of joints and its corresponding identifiers</param>
 /// <param name="frag">Fragment to be decoded</param>
-void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, PACKET &frag){
+void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, REGULAR_PACKET &frag){
 
 	//Extract frame rate
 	if (frag.joint_id <= TRANSLATION_CUSTOM_ID) {
@@ -366,7 +381,7 @@ void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, PACKET &frag){
 }
 
 
-void FBXCoding::decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, PACKET &frag) {
+void FBXCoding::decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, VIRTUAL_MARKER_PACKET &frag) {
 
 	int frag_fps = (frag.joint_id > 100) ? frag.joint_id / 100 : 0;
 	int frag_joint_id = (frag.joint_id > 100) ? frag.joint_id % 100 : frag.joint_id;
@@ -437,44 +452,67 @@ void FBXCoding::decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, PACKET &frag) 
 int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tgtNode, int keyIndex, char *p, int pIndex, SOCKET s, bool isTranslation) {
 
 
-	/*FbxAnimCurve *xCurve;
-	FbxAnimCurve *yCurve;
-	FbxAnimCurve *zCurve;
+	FbxAnimCurve *xCurve = NULL;
+	FbxAnimCurve *yCurve = NULL;
+	FbxAnimCurve *zCurve = NULL;
 
-	if (isTranslation) {
-		xCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
-		yCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
-		zCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+	FbxAnimCurve *tgtCurve = NULL; 
+
+	float kXVal = 0, kYVal = 0, kZVal = 0;
+	FbxDouble3 aVal, bVal, cVal;
+
+
+	if (!p_enableVirtualMarkers) {
+
+		if (isTranslation) {
+			xCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+			yCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+			zCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+		}
+		else {
+			xCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+			yCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
+			zCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+		}
+
+
+		// Nothing to be processed, just leave
+		if (!xCurve && !yCurve && !zCurve)
+			return pIndex;
+
+		tgtCurve = (xCurve) ? xCurve : (yCurve) ? yCurve : zCurve;
+
+		kXVal = (xCurve) ? xCurve->KeyGet(keyIndex).GetValue() : 0;
+		kYVal = (yCurve) ? yCurve->KeyGet(keyIndex).GetValue() : 0;
+		kZVal = (zCurve) ? zCurve->KeyGet(keyIndex).GetValue() : 0;
+
 	}
 	else {
-		xCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
-		yCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
-		zCurve = tgtNode->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+		if (tgtNode->GetChildCount() != 3)
+			return pIndex;
+
+		FbxNode *a, *b, *c;
+		a = tgtNode->GetChild(0);
+		b = tgtNode->GetChild(1);
+		c = tgtNode->GetChild(2);
+
+
+
+		aVal = getKeyValueFromMarker(a, animLayer, keyIndex);
+		bVal = getKeyValueFromMarker(b, animLayer, keyIndex);
+		cVal = getKeyValueFromMarker(c, animLayer, keyIndex);
+
+		tgtCurve  = a->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X, false);//(xCurve) ? xCurve : (yCurve) ? yCurve : zCurve;
 	}
 
+	FbxTime kTime = getKeyTimeFromCurve(tgtCurve, keyIndex);
 
-	// Nothing to be processed, just leave
-	if (!xCurve && !yCurve && !zCurve)
-		return pIndex;
-	*/
-
-	if (tgtNode->GetChildCount() != 3)
-		return pIndex;
-
-	FbxNode *a, *b, *c;
-	a = tgtNode->GetChild(0);
-	b = tgtNode->GetChild(1);
-	c = tgtNode->GetChild(2);
-
-	FbxDouble3 aVal = getKeyValueFromMarker(a, animLayer, keyIndex);
-	FbxDouble3 bVal = getKeyValueFromMarker(b, animLayer, keyIndex);
-	FbxDouble3 cVal = getKeyValueFromMarker(c, animLayer, keyIndex);
 
 
 	// Calculate FPS
 	if (p_fps == 0) {
 		// Get any curve that is not null
-		FbxAnimCurve *tgtCurve = a->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X, false);//(xCurve) ? xCurve : (yCurve) ? yCurve : zCurve;
 		p_fps = computeFPS(tgtCurve);
 
 		if (p_fps != 0)
@@ -486,23 +524,37 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 	int Max_key_num;
 	int bytes_sent;
 
-	if (p_enableLDPC) {
-		PACKET_LDPC &p_at_pos = ((PACKET_LDPC *)p)[pIndex];
-		Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
-		bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
+	if (!p_enableVirtualMarkers) {
 
-		//encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
-		//encodeLDPCAttributes(keyTotal, p_at_pos , xCurve, yCurve, zCurve, keyIndex);
+		if (!xCurve || !yCurve || !zCurve)
+			return pIndex;
+
+
+		if (p_enableLDPC) {
+			PACKET_LDPC &p_at_pos = ((PACKET_LDPC *)p)[pIndex];
+			Max_key_num = PACKET_SIZE / sizeof(PACKET_LDPC);
+			bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
+
+			encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
+			encodeLDPCAttributes(keyTotal, p_at_pos, kXVal, kYVal, kZVal, keyIndex);
+		}
+		else {
+			REGULAR_PACKET &p_at_pos = ((REGULAR_PACKET *)p)[pIndex];
+			Max_key_num = PACKET_SIZE / sizeof(REGULAR_PACKET);
+			bytes_sent = Max_key_num*sizeof(REGULAR_PACKET);
+
+			encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
+		}
+
 	}
-	else {
-		PACKET &p_at_pos = ((PACKET *)p)[pIndex];
-		Max_key_num = PACKET_SIZE / sizeof(PACKET);
-		bytes_sent = Max_key_num*sizeof(PACKET);
+	else { // Using virtual markers
+		VIRTUAL_MARKER_PACKET &p_at_pos = ((VIRTUAL_MARKER_PACKET *)p)[pIndex];
+		Max_key_num = PACKET_SIZE / sizeof(VIRTUAL_MARKER_PACKET);
+		bytes_sent = Max_key_num*sizeof(VIRTUAL_MARKER_PACKET);
 
-		//encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
-		FbxTime kTime = getKeyTimeFromCurve(a->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X, false), keyIndex);
 		encodeCommonKeyAttributes(p_at_pos, tgtNode, kTime, aVal, bVal, cVal);
 	}
+
 	
 	// Increment index
 	pIndex++;
@@ -532,14 +584,10 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 /// <param name="s">Socket used to send packages</param>
 /// <param name="isTranslation">Are these translation curves?</param>
 /// <return>Updated pIndex</return>
-void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, int keyIndex,  FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation) {
-	if (isTranslation) {
-		short translationID = (p_fps != 0) ? short(TRANSLATION_CUSTOM_ID*p_fps) : TRANSLATION_CUSTOM_ID;
-		outP.joint_id = translationID;
-	}
-	else {
-		outP.joint_id = getCustomIdProperty(tgtNode);
-	}
+void FBXCoding::encodeCommonKeyAttributes(REGULAR_PACKET &outP, int keyIndex,  FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation) {
+	outP.joint_id = getCustomIdProperty(tgtNode);
+	
+	outP.isTranslation = isTranslation;
 
 	if (xCurve) {
 		outP.x = xCurve->KeyGet(keyIndex).GetValue();
@@ -557,7 +605,7 @@ void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, int keyIndex,  FbxNode *
 
 }
 
-void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, FbxNode *mNode ,FbxTime keyTime, FbxDouble3 aVal, FbxDouble3 bVal, FbxDouble3 cVal) {
+void FBXCoding::encodeCommonKeyAttributes(VIRTUAL_MARKER_PACKET &outP, FbxNode *mNode ,FbxTime keyTime, FbxDouble3 aVal, FbxDouble3 bVal, FbxDouble3 cVal) {
 	
 
 
@@ -581,8 +629,8 @@ void FBXCoding::encodeCommonKeyAttributes(PACKET &outP, FbxNode *mNode ,FbxTime 
 /// <summary>
 /// Encodes LDPC parity
 /// </summary>
-void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex) {
-	float x, y, z;
+void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, float x, float y, float z, int keyIndex) {
+	//float x, y, z;
 	static itpp::LDPC_Code ldpc_encode(&H, &G);
 	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
 
@@ -590,9 +638,9 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCur
 	int keyOffset = keyIndex + p_LDPC_offset;
 	if (keyOffset < keyTotal) {
 		//	UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
-		x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0f;
-		y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0f;
-		z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		//x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		//y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		//z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0f;
 
 		itpp::bvec bitsin = tobvec(x);
 		bitsin = concat(bitsin, tobvec(y));

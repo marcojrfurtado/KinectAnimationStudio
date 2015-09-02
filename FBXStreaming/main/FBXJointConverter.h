@@ -12,7 +12,7 @@ public:
 	/// <param name="sNode">Skeleton root node</param>
 	/// <param name="onlyCopyTPose">Don't animate markers, only copy T-Pose information</param>
 	/// <return>Node representing marker Set</return>
-	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool globalTransformationEnable = true, bool onlyCopyTPose = false);
+	static FbxNode* toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool globalTransformationEnable = true, bool enableVmarker = false, bool onlyCopyTPose = false);
 
 	/// <summary>
 	/// Creates hierarchical Skeleton from absolute markers
@@ -23,7 +23,7 @@ public:
 	/// <param name="newSkelName">Name of new skeleton to be created</param>
 	/// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 	/// <return>Pointer to our newly created skeleton</return>
-	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, double fps, bool enableGlobalTransformation = true, FbxNode *markerSet = NULL, std::vector<FbxTime> &keyVec = c_emptyVector);
+	static FbxNode* fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, double fps, bool enableGlobalTransformation = true, bool enableVmarker = false, FbxNode *markerSet = NULL, std::vector<FbxTime> &keyVec = c_emptyVector);
 
 	/// <summary>
 	/// Extract key times from curve, and add them to provided vector
@@ -74,7 +74,7 @@ private:
 	/// <param name="mSet">Marker Set</param>
 	/// <param name="cNode">Current skeleton node</param>
 	/// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-	static void animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *cNode, bool enableGlobalTransformation, FbxAMatrix parentTrans = c_mIdentity);
+	static void animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *cNode, bool enableGlobalTransformation, bool enableVirtualMarkers, FbxAMatrix parentTrans = c_mIdentity);
 
 	/// <summary>
 	/// Recursive function that animates skeleton from positonal markers. Used for curve reconstruction
@@ -84,7 +84,7 @@ private:
 	/// <param name="mSet">Marker Set</param>
 	/// <param name="tgtNode">Node to be animated</param>
 	/// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-	static bool animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans = c_mIdentity);
+	static bool animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, bool enableVirtualMarkers, FbxAMatrix parentTrans = c_mIdentity);
 
 	/// <summary>
 	/// Recursive function that adds a positional marker for each joint in the hierarchy

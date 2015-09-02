@@ -72,6 +72,8 @@ public:
 	/// </summary>
 	double get_fps() { return p_fps; }
 
+	void set_enable_vmarker(bool val) { p_enableVirtualMarkers = val; }
+
 private:
 	
 	// Private attributes
@@ -105,6 +107,11 @@ private:
 	
 	// LDPC offset
 	int p_LDPC_offset;
+
+	// Enable virutal Markers
+	bool p_enableVirtualMarkers;
+
+
 
 	// Parity Matrix
 	itpp::LDPC_Parity_Regular H;
@@ -143,9 +150,9 @@ private:
 	/// </summary>
 	/// <param name="animLayer">FBX Animation layer</param>
 	/// <param name="frag">Fragment to be decoded</param>
-	void decodeFragment(FbxAnimLayer *animLayer,  PACKET &frag);
+	void decodeFragment(FbxAnimLayer *animLayer, REGULAR_PACKET &frag);
 
-	void decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, PACKET &frag);
+	void decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, VIRTUAL_MARKER_PACKET &frag);
 
 	/// <summary>
 	/// Encodes keys for curves from a given node
@@ -170,20 +177,20 @@ private:
 	/// <param name="yCurve">Y curve</param>
 	/// <param name="zCurve">Z curve</param>
 	/// <param name="isTranslation">Are these translation curves?</param>
-	void encodeCommonKeyAttributes(PACKET &outP, int keyIndex, FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation = false);
+	void encodeCommonKeyAttributes(REGULAR_PACKET &outP, int keyIndex, FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation = false);
 
 
-	void encodeCommonKeyAttributes(PACKET &outP, FbxNode *mNode, FbxTime keyTime, FbxDouble3 aVal, FbxDouble3 bVal, FbxDouble3 cVal);
+	void encodeCommonKeyAttributes(VIRTUAL_MARKER_PACKET &outP, FbxNode *mNode, FbxTime keyTime, FbxDouble3 aVal, FbxDouble3 bVal, FbxDouble3 cVal);
 	/// <summary>
 	/// Encodes LDPC parity, storing it in a PACKET fragment
 	/// </summary>
 	/// <param name="keyTotal">Maximum number of keys</param>
 	/// <param name="outP">Output packet</param>
-	/// <param name="xCurve">X curve</param>
-	/// <param name="yCurve">Y curve</param>
-	/// <param name="zCurve">Z curve</param>
+	/// <param name="x">X value</param>
+	/// <param name="y">Y value</param>
+	/// <param name="z">Z value</param>
 	/// <param name="keyIndex">Index of current key</param>
-	void encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex);
+	void encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, float x, float y, float z, int keyIndex);
 
 	/// <summary>
 	/// Converts a bvec to bitset

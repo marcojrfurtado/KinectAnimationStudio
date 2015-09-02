@@ -388,9 +388,9 @@ void applyUnrollFilterHierarchically(FbxAnimCurveFilterUnroll &filter, FbxNode *
 int getKeyCount(FbxNode *tgtNode, FbxScene *lScene) {
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
-	FbxAnimCurve *transCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
+	FbxAnimCurve *curve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 
-	int keyTotal = transCurve->KeyGetCount();
+	int keyTotal = curve->KeyGetCount();
 
 	return keyTotal;
 }

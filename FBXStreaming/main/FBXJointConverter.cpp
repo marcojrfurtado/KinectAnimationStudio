@@ -17,7 +17,7 @@ std::vector<FbxTime> FBXJointConverter::c_emptyVector = std::vector<FbxTime>();
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
 /// <param name="onlyCopyTPose">Don't animate markers, only copy T-Pose information</param>
 /// <return>Node representing marker Set</return>
-FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool gobalTransformationEnable, bool onlyCopyTPose)  {
+FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, bool gobalTransformationEnable, bool enableVmarker, bool onlyCopyTPose)  {
 
 	const char *nodeName = sNode->GetName();
 
@@ -46,14 +46,16 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, 
 		FbxAnimCurve *rootTranslationCurveX = sNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
 		extractKeyTimesFromCurve(rootTranslationCurveX, keyTimeVec);
 
-
-		// For each key time, animate markers
-		for (auto &it : keyTimeVec) {
-			animatePositionalMarkers(pLayer, it, markerSet, sNode, gobalTransformationEnable);
-			// Only get time at position 0
-			if (onlyCopyTPose)
-				break;
+		if (!onlyCopyTPose) {
+			// For each key time, animate markers
+			for (auto &it : keyTimeVec) {
+				animatePositionalMarkers(pLayer, it, markerSet, sNode, gobalTransformationEnable, enableVmarker);
+				// Only get time at position 0
+				//		if (onlyCopyTPose)
+				//			break;
+			}
 		}
+
 		
 		UI_Printf("Markers were animated.");
 
@@ -81,7 +83,7 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, 
 /// <param name="markerSet">Markers to be used</param>
 /// <param name="keyTimeVec">Vector of key times to use, if empty, will be initialized from markers</param>
 /// <return>Pointer to our newly created skeleton</return>
-FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, double fps, bool enableGlobalTransformation, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
+FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNode, char *newSkelName, double fps, bool enableGlobalTransformation, bool enableVmarker, FbxNode *markerSet, std::vector<FbxTime> &keyVec)  {
 
 
 	// Find markers
@@ -108,7 +110,9 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 	}*/
 
 	/// Create a new skeleton
-	FbxSkeleton *newSkelAttribute = FbxSkeleton::Create(pScene, newSkelName);
+//	FbxSkeleton *newSkelAttribute = FbxSkeleton::Create(pScene, newSkelName);
+	FbxNull *newSkelAttribute = FbxNull::Create(pScene, newSkelName);
+
 	FbxNode *newSkelNode = FbxNode::Create(pScene, newSkelName);
 	newSkelNode->SetNodeAttribute(newSkelAttribute);
 
@@ -130,7 +134,7 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 		FbxTime keyTime;
 		do {
 			keyTime.SetSecondDouble(double(keyTimeIndex) / fps);
-			hasKeys = animateJointsFromMarkers(pLayer, keyTime, markerSet, newSkelNode, enableGlobalTransformation);
+			hasKeys = animateJointsFromMarkers(pLayer, keyTime, markerSet, newSkelNode, enableGlobalTransformation, enableVmarker);
 			keyTimeIndex++;
 		} while (hasKeys);
 	}
@@ -209,7 +213,7 @@ int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerS
 /// <param name="mSet">Marker Set</param>
 /// <param name="cNode">Current skeleton node</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *cNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
+void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *cNode, bool enableGlobalTransformation, bool enableVirtualMarkers, FbxAMatrix parentTrans ) {
 
 	FbxAMatrix cTransformation;
 	
@@ -227,8 +231,10 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 
 		// If marker has been found, apply transformation to it
 		if (cMarkerNode) {
-			//applyTransformationMatrix(cMarkerNode, pLayer, kTime, cTransformation, false);
-			applyTransformationVirtualMarkers(cMarkerNode, pLayer, kTime, cTransformation);
+			if ( enableVirtualMarkers )
+				applyTransformationVirtualMarkers(cMarkerNode, pLayer, kTime, cTransformation);
+			else
+				applyTransformationMatrix(cMarkerNode, pLayer, kTime, cTransformation, false);
 		}
 	}
 	
@@ -237,7 +243,7 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 	//Repeat for children
 	int childCount = cNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		animatePositionalMarkers(pLayer, kTime, mSet, cNode->GetChild(i), enableGlobalTransformation ,cTransformation);
+		animatePositionalMarkers(pLayer, kTime, mSet, cNode->GetChild(i), enableGlobalTransformation, enableVirtualMarkers, cTransformation);
 
 
 }
@@ -250,7 +256,7 @@ void FBXJointConverter::animatePositionalMarkers(FbxAnimLayer *pLayer, FbxTime k
 /// <param name="mSet">Marker Set</param>
 /// <param name="tgtNode">Node to be animated</param>
 /// <param name="parentTrans">Parent transformation ( defaults to identity )</param>
-bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, FbxAMatrix parentTrans) {
+bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime kTime, FbxNode *mSet, FbxNode *tgtNode, bool enableGlobalTransformation, bool enableVirtualMarkers, FbxAMatrix parentTrans) {
 	
 
 
@@ -269,8 +275,12 @@ bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 		returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode->GetChild(0),pLayer);
 
 		// Find transformation for current node. Extract transformation from marker in order to compute it.
-		//FbxAMatrix markerTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
-		FbxAMatrix markerTrans = extractTransformationFromVirtualMarkers(tgtMarkerNode, pLayer, kTime);
+		FbxAMatrix markerTrans;
+		if ( enableVirtualMarkers ) 
+			markerTrans = extractTransformationFromVirtualMarkers(tgtMarkerNode, pLayer, kTime);
+		else
+			markerTrans = extractTransformationMatrix(tgtMarkerNode, pLayer, kTime);
+
 		FbxAMatrix tgtTransformation;
 		if (enableGlobalTransformation) {
 			// Compute absolute position of marker
@@ -297,7 +307,7 @@ bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 	//Repeat for children
 	int childCount = tgtNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		returnHasKeys |= animateJointsFromMarkers(pLayer, kTime, mSet, tgtNode->GetChild(i), enableGlobalTransformation, childReferenceTransformation);
+		returnHasKeys |= animateJointsFromMarkers(pLayer, kTime, mSet, tgtNode->GetChild(i), enableGlobalTransformation, enableVirtualMarkers, childReferenceTransformation);
 
 	return returnHasKeys;
 }
@@ -614,7 +624,8 @@ FbxNode* FBXJointConverter::findAnySkeleton(FbxScene *pScene) {
 	for (int i = 0; i < childCount; i++) {
 		FbxNode *childI = rootNode->GetChild(i);
 
-		if (childI->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+		FbxNodeAttribute *attrib = childI->GetNodeAttribute();
+		if (attrib && (  ( attrib->GetAttributeType() == FbxNodeAttribute::eSkeleton ) || (attrib->GetAttributeType() == FbxNodeAttribute::eNull )  )) {
 			return childI;
 		}
 	} 
