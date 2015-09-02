@@ -94,7 +94,7 @@ private:
 	/// <param name="cNode">Current joint node in the hierarchy</param>
 	/// <param name="idGen">Used to assign ids to markers</param>
 	/// <return>Next id to be used when marker is added</return>
-	static int createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode, int idGen = 0);
+	static int createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode, int idGen = 0, bool enableVmarker = false);
 
 
 

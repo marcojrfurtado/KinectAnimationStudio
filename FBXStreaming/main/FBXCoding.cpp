@@ -304,17 +304,19 @@ void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) 
 void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, REGULAR_PACKET &frag){
 
 	//Extract frame rate
-	if (frag.joint_id <= TRANSLATION_CUSTOM_ID) {
-		if (p_fps == 0)  {
-			p_fps = (double)abs(frag.joint_id);
-			UI_Printf(" Motion Clip FPS is equal to %lf", p_fps);
+	int frag_fps = (frag.joint_id > 100) ? frag.joint_id / 100 : 0;
+	int frag_joint_id = (frag.joint_id > 100) ? frag.joint_id % 100 : frag.joint_id;
+
+	if (p_fps == 0) {
+		if (frag_fps != 0) {
+			p_fps = frag_fps;
+			UI_Printf(" Decoded Motion Clip FPS is equal to %lf", p_fps);
 		}
-		frag.joint_id = TRANSLATION_CUSTOM_ID;
 	}
 
-	auto it = p_jointMap.find(frag.joint_id);
+	auto it = p_jointMap.find(frag_joint_id);
 	if (it == p_jointMap.end()){
-		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag.joint_id);
+		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag_joint_id);
 		return;
 	}
 
@@ -328,7 +330,7 @@ void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, REGULAR_PACKET &frag){
 		curveX = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 		curveY = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 		curveZ = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
-		interpType = FbxAnimCurveDef::eInterpolationLinear;
+		interpType = FbxAnimCurveDef::eInterpolationCubic;
 	}
 	else {
 		curveX = tgtMarker->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
@@ -395,7 +397,7 @@ void FBXCoding::decodeVirtualMarkersFrag(FbxAnimLayer *animLayer, VIRTUAL_MARKER
 	
 	auto it = p_jointMap.find(frag_joint_id);
 	if (it == p_jointMap.end()){
-		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag.joint_id);
+		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag_joint_id);
 		return;
 	}
 
@@ -585,7 +587,8 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 /// <param name="isTranslation">Are these translation curves?</param>
 /// <return>Updated pIndex</return>
 void FBXCoding::encodeCommonKeyAttributes(REGULAR_PACKET &outP, int keyIndex,  FbxNode *tgtNode, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, bool isTranslation) {
-	outP.joint_id = getCustomIdProperty(tgtNode);
+	outP.joint_id = (p_fps == 0) ? getCustomIdProperty(tgtNode) : (p_fps * 100) + getCustomIdProperty(tgtNode);
+
 	
 	outP.isTranslation = isTranslation;
 

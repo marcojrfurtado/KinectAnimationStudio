@@ -31,7 +31,7 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, 
 	pScene->GetRootNode()->AddChild(markerSet);
 
 	// Create markers for each joint
-	createMarkersHierarchy(pScene, markerSet, sNode);
+	createMarkersHierarchy(pScene, markerSet, sNode, enableVmarker);
 
 	// Get Animation Layer
 	FbxAnimStack *pStack = pScene->GetCurrentAnimationStack();
@@ -126,6 +126,11 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 	// Get Animation Layer
 	FbxAnimStack *pStack = pScene->GetCurrentAnimationStack();
 	FbxAnimLayer *pLayer = pStack->GetMember<FbxAnimLayer>();
+	
+	if (fps == 0) {
+		UI_Printf("fps = %lf", fps);
+		return newSkelNode;
+	}
 
 	if (pLayer) {
 		// For each key time,Animate new skeleton
@@ -154,7 +159,7 @@ FbxNode* FBXJointConverter::fromAbsoluteMarkers(FbxScene *pScene, FbxNode *refNo
 /// <param name="pScene">FBX Scene</param>
 /// <param name="markerSet">Set to have markers added to, if NULL, markers are added to scene</param>
 /// <param name="cNode">Current joint node in the hierarchy</param>
-int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode, int idGen) {
+int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerSet, FbxNode *cNode, int idGen, bool enableVmarker) {
 
 
 
@@ -181,7 +186,9 @@ int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerS
 		if (pLayer) {
 			copyCurveInformation(pLayer, cNode, markerNode);
 			applyTransformationMatrix(markerNode, pLayer, FbxTime(0), c_mIdentity, false);
-			addVirtualMarkerPosition(pLayer, markerNode, pScene);
+			
+			if (enableVmarker)
+				addVirtualMarkerPosition(pLayer, markerNode, pScene);
 			
 		}
 
@@ -198,7 +205,7 @@ int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerS
 	// Repeat for children
 	int childCount = cNode->GetChildCount();
 	for (int i = 0; i < childCount; i++)
-		idGen = createMarkersHierarchy(pScene, markerSet, cNode->GetChild(i), idGen);
+		idGen = createMarkersHierarchy(pScene, markerSet, cNode->GetChild(i), idGen, enableVmarker);
 
 	return idGen;
 
@@ -271,8 +278,13 @@ bool FBXJointConverter::animateJointsFromMarkers(FbxAnimLayer *pLayer, FbxTime k
 
 	// If marker has been found, animate it
 	if (tgtMarkerNode && isAnimatable(tgtNode) ) {
-
-		returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode->GetChild(0),pLayer);
+		if (enableVirtualMarkers) {
+			returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode->GetChild(0), pLayer);
+		}
+		else {
+			returnHasKeys = hasMoreKeys(kTime, tgtMarkerNode, pLayer);
+		}
+		
 
 		// Find transformation for current node. Extract transformation from marker in order to compute it.
 		FbxAMatrix markerTrans;
@@ -424,13 +436,13 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 	}
 
 	if (tXCurve && applytXCurve)
-		applyTransformationVectorToCurve(tXCurve, kTime, (float)translation[0], FbxAnimCurveDef::eInterpolationLinear);
+		applyTransformationVectorToCurve(tXCurve, kTime, (float)translation[0], FbxAnimCurveDef::eInterpolationCubic);
 
 	if (tYCurve && applytYCurve)
-		applyTransformationVectorToCurve(tYCurve, kTime, (float)translation[1], FbxAnimCurveDef::eInterpolationLinear);
+		applyTransformationVectorToCurve(tYCurve, kTime, (float)translation[1], FbxAnimCurveDef::eInterpolationCubic);
 
 	if (tZCurve && applytZCurve)
-		applyTransformationVectorToCurve(tZCurve, kTime, (float)translation[2], FbxAnimCurveDef::eInterpolationLinear);
+		applyTransformationVectorToCurve(tZCurve, kTime, (float)translation[2], FbxAnimCurveDef::eInterpolationCubic);
 
 	// Repeat the same thing for rotation
 	// Get Rotation curves
@@ -482,6 +494,17 @@ void FBXJointConverter::copySkeleton(FbxScene *pScene, FbxNode *oriSkel, FbxNode
 	// Copy properties
 	tgtSkel->Copy(*oriSkel);
 
+	tgtSkel->SetRotationActive(oriSkel->GetRotationActive());
+	tgtSkel->RotationPivot = oriSkel->RotationPivot;
+	tgtSkel->RotationOrder = oriSkel->RotationOrder;
+
+	FbxPropertyT<FbxBool> PROP = oriSkel->RotationSpaceForLimitOnly;
+	if (oriSkel->RotationSpaceForLimitOnly.Get()) {
+		if (!tgtSkel->RotationSpaceForLimitOnly.CopyValue(oriSkel->RotationSpaceForLimitOnly))
+			UI_Printf("Failed to copy MB5.5 limits property");
+	}
+
+
 	// Enable Quaternion interpolation
 	tgtSkel->SetQuaternionInterpolation(FbxNode::EPivotSet::eSourcePivot, EFbxQuatInterpMode::eQuatInterpSlerp);
 
@@ -509,6 +532,8 @@ void FBXJointConverter::copySkeleton(FbxScene *pScene, FbxNode *oriSkel, FbxNode
 		copySkeleton(pScene, oriJointI, tgtJointI);
 
 	}
+
+
 
 
 }
