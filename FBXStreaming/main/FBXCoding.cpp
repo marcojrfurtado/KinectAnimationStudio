@@ -326,7 +326,7 @@ void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, REGULAR_PACKET &frag){
 	FbxAnimCurveDef::EInterpolationType interpType;
 
 	// Check what type of curve we received
-	if (frag.joint_id == TRANSLATION_CUSTOM_ID) {
+	if (frag.isTranslation) {
 		curveX = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 		curveY = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 		curveZ = tgtMarker->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);

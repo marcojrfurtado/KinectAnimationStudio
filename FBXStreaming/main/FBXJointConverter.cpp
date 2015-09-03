@@ -31,7 +31,7 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, 
 	pScene->GetRootNode()->AddChild(markerSet);
 
 	// Create markers for each joint
-	createMarkersHierarchy(pScene, markerSet, sNode, enableVmarker);
+	createMarkersHierarchy(pScene, markerSet, sNode, 0, enableVmarker);
 
 	// Get Animation Layer
 	FbxAnimStack *pStack = pScene->GetCurrentAnimationStack();
@@ -185,7 +185,7 @@ int FBXJointConverter::createMarkersHierarchy(FbxScene *pScene, FbxNode *markerS
 		// Initialize curves, based on reference node
 		if (pLayer) {
 			copyCurveInformation(pLayer, cNode, markerNode);
-			applyTransformationMatrix(markerNode, pLayer, FbxTime(0), c_mIdentity, false);
+			applyTransformationMatrix(markerNode, pLayer, FbxTime(0), extractTransformationMatrix(cNode,pLayer,FbxTime(0)), false);
 			
 			if (enableVmarker)
 				addVirtualMarkerPosition(pLayer, markerNode, pScene);
@@ -486,7 +486,7 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 /// <param name="tgtSkel">Skeleton root to receive hierarchy</param>
 void FBXJointConverter::copySkeleton(FbxScene *pScene, FbxNode *oriSkel, FbxNode *tgtSkel) {
 
-
+	tgtSkel->RotationSpaceForLimitOnly.CopyValue(oriSkel->RotationSpaceForLimitOnly);
 
 	// Copy attributes
 	tgtSkel->SetNodeAttribute(oriSkel->GetNodeAttribute());
@@ -494,14 +494,14 @@ void FBXJointConverter::copySkeleton(FbxScene *pScene, FbxNode *oriSkel, FbxNode
 	// Copy properties
 	tgtSkel->Copy(*oriSkel);
 
+	tgtSkel->RotationSpaceForLimitOnly.CopyValue(oriSkel->RotationSpaceForLimitOnly);
+
 	tgtSkel->SetRotationActive(oriSkel->GetRotationActive());
 	tgtSkel->RotationPivot = oriSkel->RotationPivot;
 	tgtSkel->RotationOrder = oriSkel->RotationOrder;
 
-	FbxPropertyT<FbxBool> PROP = oriSkel->RotationSpaceForLimitOnly;
 	if (oriSkel->RotationSpaceForLimitOnly.Get()) {
-		if (!tgtSkel->RotationSpaceForLimitOnly.CopyValue(oriSkel->RotationSpaceForLimitOnly))
-			UI_Printf("Failed to copy MB5.5 limits property");
+		tgtSkel->SetUseRotationSpaceForLimitOnly(FbxNode::EPivotSet::eSourcePivot, true);
 	}
 
 
@@ -515,6 +515,7 @@ void FBXJointConverter::copySkeleton(FbxScene *pScene, FbxNode *oriSkel, FbxNode
 	if (pLayer) {
 		copyCurveInformation(pLayer, oriSkel, tgtSkel);
 	}
+
 
 
 	// For each child
