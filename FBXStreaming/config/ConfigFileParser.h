@@ -8,6 +8,7 @@
 #define ENABLE_LDPC "LDPC"
 #define LDPC_OFFSET "Offset"
 #define ENABLE_VIRTUAL_MARKER "Virtual_Markers"
+#define ENABLE_IK "IK_Model"
 
 
 class ConfigFileParser

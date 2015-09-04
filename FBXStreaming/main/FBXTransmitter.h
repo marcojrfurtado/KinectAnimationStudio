@@ -157,6 +157,9 @@ private:
 	// Enable virutal Markers
 	bool p_enableVirtualMarkers;
 
+	// Enable IK
+	bool p_enableIK;
+
 	// Private methods
 
 	/// <summary>
