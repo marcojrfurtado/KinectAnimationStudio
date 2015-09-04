@@ -35,6 +35,11 @@ p_globalTransformationMode(true)
 		std::istringstream(enableVMarker) >> p_enableVirtualMarkers;
 	}
 
+	std::string enableIK = parser.getParameter(ENABLE_IK);
+	if (enableIK.compare("ERROR") != 0) {
+		std::istringstream(enableIK) >> p_enableIK;
+	}
+
 	p_coding.set_enable_vmarker(p_enableVirtualMarkers);
 }
 
@@ -135,6 +140,12 @@ void FBXTransmitter::transmit() {
 		// Get scene child
 		FbxNode *pNode = lScene->GetRootNode()->GetChild(i);
 
+		if (p_enableIK) {
+			const char *effectorSet_Name = "Character_Ctrl:Reference";
+			if (strcmp(pNode->GetName(), effectorSet_Name) != 0)
+				continue;
+		}
+
 		if (pNode == NULL)
 			continue;
 
@@ -143,7 +154,7 @@ void FBXTransmitter::transmit() {
 		// If not skeleton root, ignore node
 	//	if (pNodeAttType != FbxNodeAttribute::EType::eSkeleton)
 	//		continue;
-		if (pNodeAttType != FbxNodeAttribute::EType::eNull)
+		if ( (pNodeAttType != FbxNodeAttribute::EType::eNull ) && (pNodeAttType != FbxNodeAttribute::EType::eMarker ))
 			continue;
 
 		// Convert to positional markers ( markers are added to the scene )
@@ -240,7 +251,12 @@ void FBXTransmitter::backgroundListenServer() {
 		return;
 	}
 
-	FbxNode *skel = FBXJointConverter::findAnySkeleton(lScene);
+	FbxNode *skel;
+	if (p_enableIK) {
+		skel = lScene->GetRootNode()->GetChild(1);
+	}else {
+		skel = FBXJointConverter::findAnySkeleton(lScene);
+	}
 
 	// Check if load was succesful
 	if (!skel) {
@@ -638,6 +654,7 @@ void FBXTransmitter::createModelBaseFile() {
 	}
 
 
+
 	// Try loading export file
 	FbxScene* lScene = FbxScene::Create(p_sdkManager, "");
 	// Load File
@@ -660,14 +677,20 @@ void FBXTransmitter::createModelBaseFile() {
 		// Get scene child
 		FbxNode *pNode = lScene->GetRootNode()->GetChild(i);
 
+		if (p_enableIK) {
+			const char *effectorSet_Name = "Character_Ctrl:Reference";
+			if (strcmp(pNode->GetName(), effectorSet_Name) != 0)
+				continue;
+		}
+
 		if (pNode == NULL)
 			continue;
 
 		FbxNodeAttribute::EType pNodeAttType = pNode->GetNodeAttribute()->GetAttributeType();
 
 		// If not skeleton root, ignore node
-		if (pNodeAttType != FbxNodeAttribute::EType::eNull)
-			continue;
+	//	if (pNodeAttType != FbxNodeAttribute::EType::eNull)
+	//		continue;
 
 		// Convert to positional markers ( markers are added to the scene )
 		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, p_enableVirtualMarkers,true);

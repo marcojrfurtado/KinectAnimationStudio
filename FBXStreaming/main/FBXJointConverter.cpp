@@ -44,6 +44,9 @@ FbxNode* FBXJointConverter::toAbsoluteMarkers(FbxScene *pScene, FbxNode *sNode, 
 
 		// Collect keyframe times
 		FbxAnimCurve *rootTranslationCurveX = sNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		if ( !rootTranslationCurveX)
+			rootTranslationCurveX = sNode->GetChild(0)->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+
 		extractKeyTimesFromCurve(rootTranslationCurveX, keyTimeVec);
 
 		if (!onlyCopyTPose) {
