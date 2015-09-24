@@ -106,7 +106,7 @@ bool hasMoreKeys(FbxTime kTime, FbxAnimCurve *curve);
 /// </summary>
 bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime);
 
-bool hasKeysAt(FbxAnimLayer *pLayer, FbxNode *tgtNode, FbxTime kTime);
+bool hasKeysAt(FbxAnimLayer *pLayer, FbxNode *tgtNode, FbxTime kTime, bool isTranslation=false);
 
 FbxDouble3 getKeyValueFromMarker(FbxNode *vMarker, FbxAnimLayer *pLayer, int keyIndex);
 FbxTime getKeyTimeFromMarker(FbxNode *vMarker, FbxAnimLayer *pLayer, int keyIndex);

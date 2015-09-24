@@ -5,7 +5,7 @@
   
   <!-- User Macros -->
   <PropertyGroup Label="UserMacros">
-    <ITPP_ROOT Condition="'$(Platform)'=='x64'">$(programW6432)\ITPP</ITPP_ROOT>
+    <ITPP_ROOT Condition="'$(Platform)'=='x64'">C:\ITPP</ITPP_ROOT>
   </PropertyGroup>
 
   <!-- Debug|x64 -->

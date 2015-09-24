@@ -166,7 +166,7 @@ void FBXCoding::encodeAnimation(FbxScene *lScene, FbxNode *markerSet, SOCKET s) 
 				//UI_Printf("now encoding key: %d", *it);
 				for (int ci = 0; ci < childCount; ci++) {
 					int oldPIndex = pIndex;
-					int shuffleKeyIndex = shuffleKeyIndexArray[ci * keyIvec.size() + keyi];
+					int shuffleKeyIndex = shuffleKeyIndexArray[keyi];//shuffleKeyIndexArray[ci * keyIvec.size() + keyi];
 
 					// Encode rotation curves
 					pIndex = encodeKeyFrame(keyTotal, animLayer, markerSet->GetChild(ci), shuffleKeyIndex, out_buf, pIndex, s, false);
@@ -291,7 +291,11 @@ void FBXCoding::decodeLDPCFragment(FbxAnimLayer *animLayer,  PACKET_LDPC &frag) 
 		return;
 
 	// Decode parity part
-	p_ldpc_parity_map[std::pair<short, FbxLongLong>(frag.joint_id, frag.time)] = frag.bits;
+	if ( frag.isTranslation )
+		p_ldpc_parity_trans_map[std::pair<short, FbxLongLong>(frag.joint_id, frag.time)] = frag.bits;
+	else
+		p_ldpc_parity_rot_map[std::pair<short, FbxLongLong>(frag.joint_id, frag.time)] = frag.bits;
+
 	
 }
 
@@ -319,6 +323,8 @@ void FBXCoding::decodeFragment(FbxAnimLayer *animLayer, REGULAR_PACKET &frag){
 		UI_Printf(" Decoding error. Unable to find node with id %d in the scene.", frag_joint_id);
 		return;
 	}
+
+	frag.joint_id = frag_joint_id;
 
 	FbxNode *tgtMarker = it->second;
 
@@ -538,7 +544,7 @@ int FBXCoding::encodeKeyFrame(int keyTotal, FbxAnimLayer *animLayer, FbxNode *tg
 			bytes_sent = Max_key_num*sizeof(PACKET_LDPC);
 
 			encodeCommonKeyAttributes(p_at_pos, keyIndex, tgtNode, xCurve, yCurve, zCurve, isTranslation);
-			encodeLDPCAttributes(keyTotal, p_at_pos, kXVal, kYVal, kZVal, keyIndex);
+			encodeLDPCAttributes(keyTotal, p_at_pos, xCurve, yCurve, zCurve, keyIndex);
 		}
 		else {
 			REGULAR_PACKET &p_at_pos = ((REGULAR_PACKET *)p)[pIndex];
@@ -632,8 +638,8 @@ void FBXCoding::encodeCommonKeyAttributes(VIRTUAL_MARKER_PACKET &outP, FbxNode *
 /// <summary>
 /// Encodes LDPC parity
 /// </summary>
-void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, float x, float y, float z, int keyIndex) {
-	//float x, y, z;
+void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex) {
+	float x, y, z;
 	static itpp::LDPC_Code ldpc_encode(&H, &G);
 	// Get X, Y, Z, for offset keyframe and encode them when LDPC is enabled
 
@@ -641,9 +647,9 @@ void FBXCoding::encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, float x, f
 	int keyOffset = keyIndex + p_LDPC_offset;
 	if (keyOffset < keyTotal) {
 		//	UI_Printf("key offset of %d is: %d ", keyIndex, keyOffset);
-		//x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0f;
-		//y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0f;
-		//z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		x = (xCurve)? xCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		y = (yCurve)? yCurve->KeyGet(keyOffset).GetValue() :0.0f;
+		z = (zCurve)? zCurve->KeyGet(keyOffset).GetValue() :0.0f;
 
 		itpp::bvec bitsin = tobvec(x);
 		bitsin = concat(bitsin, tobvec(y));
@@ -774,13 +780,12 @@ itpp::bvec FBXCoding::tobvec(std::bitset<N_PARITY_BIT> bset) {
 /// <summary>
 /// Recovers missing information in the animation by using LDPC parity data
 /// </summary>
-void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
+void FBXCoding::startLDPCRecovery(FbxScene *lScene, bool translationRec) {
 
 
 	if (!isLDPCEnabled())
 		return;
 
-	UI_Printf("LDPC is enabled. Starting recovery of missing packets.");
 
 
 
@@ -792,6 +797,18 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	FbxAnimStack *animStack = lScene->GetCurrentAnimationStack();
 	FbxAnimLayer *animLayer = animStack->GetMember<FbxAnimLayer>();
 
+	std::map<std::pair<short, FbxLongLong>, std::bitset<N_PARITY_BIT>> *tgtMap;
+	
+	UI_Printf("LDPC is enabled. Starting recovery of missing packets for:");
+	if (translationRec) {
+		UI_Printf("		translation curves.");
+		tgtMap = &p_ldpc_parity_trans_map;
+	}
+	else {
+		UI_Printf("		rotation curves.");
+		tgtMap = &p_ldpc_parity_rot_map;
+	}
+
 
 	// Number of recovered keyframes
 	int recoveredCount = 0;
@@ -801,7 +818,8 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 
 	// Number of processed keyframes
 	int nProcessedKeys = 0;
-	size_t nTotalKeys = p_ldpc_parity_map.size();
+	size_t nTotalKeys = tgtMap->size();
+
 	double showRatio = 0;
 
 	static itpp::LDPC_Code decoder(&H, &G);
@@ -810,7 +828,7 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 	// Counter for possible inacuraccies in LDPC prediction
 	int LDPC_Interpolated_match = 0;
 
-	for (auto &it : p_ldpc_parity_map) {
+	for (auto &it : (*tgtMap)) {
 
 		// Let the user know the progress
 		double procRatio = (nProcessedKeys++) / double(nTotalKeys);
@@ -824,7 +842,10 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 		auto &key_pair = it.first;
 		auto &value_parity = it.second;
 
-		auto &node_it = p_jointMap.find(key_pair.first);
+		int joint_id = key_pair.first;
+		joint_id = (joint_id > 100) ? joint_id%100 : joint_id;
+
+		auto &node_it = p_jointMap.find(joint_id);
 		if (node_it == p_jointMap.end())
 			continue;
 
@@ -832,7 +853,7 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 
 		FbxAnimCurve *xCurve, *yCurve, *zCurve, *tgtCurve = NULL;
 
-		if (key_pair.first == TRANSLATION_CUSTOM_ID) {
+		if (translationRec) {
 			xCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X);
 			yCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 			zCurve = tgtNode->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z);
@@ -946,15 +967,15 @@ void FBXCoding::startLDPCRecovery(FbxScene *lScene) {
 			}
 
 			// Create new keys
-			bool isTranslation = (key_pair.first == TRANSLATION_CUSTOM_ID);
+			
 			if (xCurve) {
-				insertKeyCurve(xCurve, keyTime, xNewVal, isTranslation);
+				insertKeyCurve(xCurve, keyTime, xNewVal, translationRec);
 			}
 			if (yCurve) {
-				insertKeyCurve(yCurve, keyTime, yNewVal, isTranslation);
+				insertKeyCurve(yCurve, keyTime, yNewVal, translationRec);
 			}
 			if (zCurve) {
-				insertKeyCurve(zCurve, keyTime, zNewVal, isTranslation);
+				insertKeyCurve(zCurve, keyTime, zNewVal, translationRec);
 			}
 		}
 	}

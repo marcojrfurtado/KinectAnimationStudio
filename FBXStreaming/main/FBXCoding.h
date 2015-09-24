@@ -60,7 +60,7 @@ public:
 	/// <summary>
 	/// Recovers missing information in the animation by using LDPC parity data
 	/// </summary>
-	void startLDPCRecovery(FbxScene *scene);
+	void startLDPCRecovery(FbxScene *scene, bool translationRec = false);
 
 	/// <summary>
 	/// Chekcs whether LDPC has been enabled
@@ -124,7 +124,9 @@ private:
 
 	// Parity map, used to restore missing keyframes
 	// Relates key timestamps to their corresponding parities
-	std::map<std::pair<short,FbxLongLong>, std::bitset<N_PARITY_BIT>> p_ldpc_parity_map;
+	std::map<std::pair<short,FbxLongLong>, std::bitset<N_PARITY_BIT>> p_ldpc_parity_rot_map;
+	std::map<std::pair<short, FbxLongLong>, std::bitset<N_PARITY_BIT>> p_ldpc_parity_trans_map;
+
 
 
 	// Framerate
@@ -190,7 +192,7 @@ private:
 	/// <param name="y">Y value</param>
 	/// <param name="z">Z value</param>
 	/// <param name="keyIndex">Index of current key</param>
-	void encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, float x, float y, float z, int keyIndex);
+	void encodeLDPCAttributes(int keyTotal, PACKET_LDPC &outP, FbxAnimCurve *xCurve, FbxAnimCurve *yCurve, FbxAnimCurve *zCurve, int keyIndex);
 
 	/// <summary>
 	/// Converts a bvec to bitset

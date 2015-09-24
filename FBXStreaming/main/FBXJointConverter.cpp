@@ -433,9 +433,9 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 		FbxAnimCurve *reftYCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
 		FbxAnimCurve *reftZCurve = refNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
 
-		applytXCurve = (reftXCurve);// && (hasKeysAt(pLayer, refNode, kTime));
-		applytYCurve = (reftYCurve);// && (hasKeysAt(pLayer, refNode, kTime));
-		applytZCurve = (reftZCurve);// && (hasKeysAt(pLayer, refNode, kTime));
+		applytXCurve = (reftXCurve) && (hasKeysAt(pLayer, refNode, kTime,true));
+		applytYCurve = (reftYCurve) && (hasKeysAt(pLayer, refNode, kTime,true));
+		applytZCurve = (reftZCurve) && (hasKeysAt(pLayer, refNode, kTime,true));
 	}
 
 	if (tXCurve && applytXCurve)
@@ -460,9 +460,9 @@ void FBXJointConverter::applyTransformationMatrix(FbxNode *cNode, FbxAnimLayer *
 		FbxAnimCurve *refrYCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
 		FbxAnimCurve *refrZCurve = refNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
 
-		applyrXCurve = (refrXCurve);// && (hasKeysAt(pLayer, refNode, kTime));
-		applyrYCurve = (refrYCurve);// && (hasKeysAt(pLayer, refNode, kTime));
-		applyrZCurve = (refrZCurve);// && (hasKeysAt(pLayer, refNode, kTime));
+		applyrXCurve = (refrXCurve) && (hasKeysAt(pLayer, refNode, kTime,false));
+		applyrYCurve = (refrYCurve) && (hasKeysAt(pLayer, refNode, kTime,false));
+		applyrZCurve = (refrZCurve) && (hasKeysAt(pLayer, refNode, kTime,false));
 	}
 
 	if (rXCurve && applyrXCurve)
