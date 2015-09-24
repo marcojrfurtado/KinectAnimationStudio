@@ -415,7 +415,9 @@ void FBXTransmitter::backgroundListenServer() {
 	UI_Printf("Decode has finished. %d packets were received during transmission",packetCount);
 	
 	if (p_coding.isLDPCEnabled()) {
-		p_coding.startLDPCRecovery(lScene );
+		p_coding.startLDPCRecovery(lScene,true);
+		p_coding.startLDPCRecovery(lScene,false);
+
 	}
 	
 
@@ -695,7 +697,7 @@ void FBXTransmitter::createModelBaseFile() {
 		// Convert to positional markers ( markers are added to the scene )
 		FbxNode *markerSet = FBXJointConverter::toAbsoluteMarkers(lScene, pNode, p_globalTransformationMode, p_enableVirtualMarkers,true);
 
-	//	FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip3", 30, p_globalTransformationMode, p_enableVirtualMarkers ,markerSet);
+		//FBXJointConverter::fromAbsoluteMarkers(lScene, pNode, "Bip3", 30, p_globalTransformationMode, p_enableVirtualMarkers ,markerSet);
 
 
 		break;

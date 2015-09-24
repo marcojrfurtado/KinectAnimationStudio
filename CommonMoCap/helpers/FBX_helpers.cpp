@@ -528,6 +528,9 @@ bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime) {
 
 	int roundedIndex = int(round(approxKeyIndex));
 
+	if (roundedIndex < 0)
+		return false;
+
 	FbxAnimCurveKey curveKey = curve->KeyGet(roundedIndex);
 
 	FbxLongLong kTimeMS = kTime.GetMilliSeconds(), curveTimeMS = curveKey.GetTime().GetMilliSeconds();
@@ -536,12 +539,18 @@ bool hasKeysAt(FbxAnimCurve *curve, FbxTime kTime) {
 
 }
 
-bool hasKeysAt(FbxAnimLayer *pLayer, FbxNode *tgtNode, FbxTime kTime) {
-	if (tgtNode->GetChildCount() == 0)
-		return false;
-	else {
+bool hasKeysAt(FbxAnimLayer *pLayer, FbxNode *tgtNode, FbxTime kTime, bool isTranslation) {
+
+	if (tgtNode->GetChildCount() == 3) {
 		FbxAnimCurve *xCurve = tgtNode->GetChild(0)->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
 		return hasKeysAt(xCurve, kTime);
+	}
+	else {
+		FbxAnimCurve *xCurve = (isTranslation) ? tgtNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false) : tgtNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+		if (xCurve)
+			return hasKeysAt(xCurve, kTime);
+		else
+			return false;
 	}
 }
 
