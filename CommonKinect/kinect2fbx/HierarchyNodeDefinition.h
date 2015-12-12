@@ -58,6 +58,9 @@ struct HierarchyNodeDefinition {
 	// Joint rotation information (not related to animation)
 	FbxDouble3 m_rotation;
 
+	// Joint pre-rotation information
+	FbxDouble3 m_preRot;
+
 	// Kinect Corresponding joint
 	JointType m_kTwin;
 

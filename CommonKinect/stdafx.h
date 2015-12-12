@@ -5,21 +5,20 @@
 
 #pragma once
 
-#include "targetver.h"
+#pragma comment(lib,"libfbxsdk.lib")
+#pragma comment(lib,"kinect20.lib")
 
-//#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
-#include <Windows.h>
+#include <windows.h>
 
 // C++ STD header Files
 #include <mutex>
 #include <chrono>
 #include <memory>
-
-
-
-// Common Mocap Library
-#include "CommonMoCap\CommonMocap.h"
+#include <vector>
 
 
 // Reference additional headers your program requires here
 #include <Kinect.h>
+#include <fbxsdk.h>
+
+

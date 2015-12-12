@@ -35,8 +35,20 @@ public:
 	/// <summary>
 	/// Main update function, will redraw anything
 	/// </summary>
-	HRESULT update();
+	bool update();
 
+	/// <summary>
+	/// Notify class about a frame that arrived
+	/// </summary>
+	/// <param name="bFrame">Incoming frame</param>
+	/// <param name="frameTime">Frame timestamp</param>
+	virtual void notify(IBodyFrame *bFrame, INT64 frameTime);
+
+
+	/// <summary>
+	/// Checks if visualizer is attached to window
+	/// </summary>
+	bool is_attached() { return m_hWnd != NULL; };
 
 
 
@@ -57,8 +69,6 @@ private:
 	double                  m_fFreq;
 	INT64                   m_nNextStatusTime;
 	DWORD                   m_nFramesSinceUpdate;
-
-
 
 	// D2D Factory
 	ID2D1Factory* m_pD2DFactory;

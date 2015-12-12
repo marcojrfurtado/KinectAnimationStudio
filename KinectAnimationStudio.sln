@@ -5,10 +5,6 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KinectAnimationStudio", "KinectAnimationStudio-Src\KinectAnimationStudio.vcxproj", "{F04FE33E-CE64-4B58-AF06-B28DD9734858}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FBXStreaming", "FBXStreaming\FBXStreaming.vcxproj", "{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommonMoCap", "CommonMoCap\CommonMoCap.vcxproj", "{7F525177-77EE-4ADF-81D8-9E4C726E37BB}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommonKinect", "CommonKinect\CommonKinect.vcxproj", "{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}"
 EndProject
 Global
@@ -31,25 +27,6 @@ Global
 		{F04FE33E-CE64-4B58-AF06-B28DD9734858}.Release|Win32.ActiveCfg = Release|x64
 		{F04FE33E-CE64-4B58-AF06-B28DD9734858}.Release|x64.ActiveCfg = Release|x64
 		{F04FE33E-CE64-4B58-AF06-B28DD9734858}.Release|x64.Build.0 = Release|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Debug|Mixed Platforms.ActiveCfg = Debug|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Debug|Mixed Platforms.Build.0 = Debug|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Debug|Win32.ActiveCfg = Debug|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Debug|x64.ActiveCfg = Debug|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Debug|x64.Build.0 = Debug|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Release|Mixed Platforms.ActiveCfg = Release|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Release|Mixed Platforms.Build.0 = Release|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Release|Win32.ActiveCfg = Release|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Release|x64.ActiveCfg = Release|x64
-		{7D0F35BB-D2E4-4843-A97F-4B4EA78933A5}.Release|x64.Build.0 = Release|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Debug|Mixed Platforms.ActiveCfg = Debug|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Debug|Mixed Platforms.Build.0 = Debug|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Debug|Win32.ActiveCfg = Debug|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Debug|x64.ActiveCfg = Debug|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|Mixed Platforms.ActiveCfg = Release|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|Mixed Platforms.Build.0 = Release|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|Win32.ActiveCfg = Release|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|x64.ActiveCfg = Release|x64
-		{7F525177-77EE-4ADF-81D8-9E4C726E37BB}.Release|x64.Build.0 = Release|x64
 		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|Mixed Platforms.ActiveCfg = Debug|x64
 		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|Mixed Platforms.Build.0 = Debug|x64
 		{50182805-3D70-46EE-B4CF-01E7A0F5B5B2}.Debug|Win32.ActiveCfg = Debug|x64

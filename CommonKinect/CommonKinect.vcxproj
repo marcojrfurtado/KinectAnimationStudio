@@ -22,6 +22,7 @@
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <PlatformToolset>v120</PlatformToolset>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -31,34 +32,45 @@
     <Import Project="..\FBXProject.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="..\KinectProject.props" />
     <Import Project="..\FBXProject.props" />
+    <Import Project="..\KinectProject.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+    <Lib>
+      <AdditionalDependencies />
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories />
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CommmonKinect.h" />
+    <ClInclude Include="helpers\FBX_helpers.h" />
     <ClInclude Include="helpers\Kinect_helpers.h" />
+    <ClInclude Include="helpers\UI_helpers.h" />
+    <ClInclude Include="helpers\WindowIDS.h" />
     <ClInclude Include="kinect2fbx\HierarchyNodeDefinition.h" />
     <ClInclude Include="kinect2fbx\KinectSkeletonMapper.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="helpers\FBX_helpers.cpp" />
     <ClCompile Include="helpers\Kinect_Helpers.cpp" />
+    <ClCompile Include="helpers\UI_helpers.cpp" />
     <ClCompile Include="kinect2fbx\HierarchyNodeDefinition.cpp" />
     <ClCompile Include="kinect2fbx\KinectSkeletonMapper.cpp" />
     <ClCompile Include="stdafx.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\CommonMoCap\CommonMoCap.vcxproj">
-      <Project>{7f525177-77ee-4adf-81d8-9e4c726e37bb}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

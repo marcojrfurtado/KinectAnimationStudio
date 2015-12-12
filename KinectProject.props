@@ -9,16 +9,12 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(KINECTSDK20_DIR)\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(KINECTSDK20_DIR)\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">kinect20.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">Kinect20.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-	<Lib>
-	  <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-	  <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">kinect20.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
-	</Lib>
   </ItemDefinitionGroup>
 
   <!-- Release|x64 -->
@@ -27,11 +23,11 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(KINECTSDK20_DIR)\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(KINECTSDK20_DIR)\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">kinect20.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">kinect20.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
 
   </ItemDefinitionGroup>

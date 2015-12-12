@@ -1,4 +1,5 @@
 #include "KinectSkeletonMapper.h"
+#include "..\helpers\FBX_helpers.h"
 
 // Constant definitions
 const char * KinectSkeletonMapper::c_SkelRootIdPatternPreffix = "Skel%d:";
@@ -6,7 +7,8 @@ const char *KinectSkeletonMapper::c_jointTypePropertyDefaultName = "JointType";
 const std::shared_ptr<HierarchyNodeDefinition> KinectSkeletonMapper::c_defaultNodeHierarchy = GetDefaultHierarchyNodeDefinition();
 const JointType KinectSkeletonMapper::c_kinectRootJointType = JointType_SpineBase;
 const float KinectSkeletonMapper::c_rotationContinuityMaxOffset = 180;
-const float KinectSkeletonMapper::c_positionalScalingFactor = 50;
+const float KinectSkeletonMapper::c_positionalScalingFactor = 60;
+const char *KinectSkeletonMapper::c_DefaultRootJointName = "Reference";
 
 
 /// <summary>
@@ -17,7 +19,7 @@ const float KinectSkeletonMapper::c_positionalScalingFactor = 50;
 /// <param name="kBody">Kinect Body</param>
 void KinectSkeletonMapper::map(FbxScene* pScene, INT64 frameTime ,IBody *kBody) {
 
-	FbxString bodyRootName = getPreffixedNodeName(kBody, "Root");
+	FbxString bodyRootName = getPreffixedNodeName(kBody, c_DefaultRootJointName);
 
 	FbxNode *skelNode;
 	// Check whether skeleton has already been added to the scene
@@ -45,6 +47,9 @@ void KinectSkeletonMapper::map(FbxScene* pScene, INT64 frameTime ,IBody *kBody) 
 		// Initialize body
 		skelNode = init(pScene, kBody);
 
+		// Set translation scale value
+		//setTransScaling(skelNode, joints);
+
 		// Set body initial alignment
 		setInitialAlignmentRules(skelNode, joints, orientations);
 	}
@@ -63,7 +68,7 @@ void KinectSkeletonMapper::map(FbxScene* pScene, INT64 frameTime ,IBody *kBody) 
 FbxNode * KinectSkeletonMapper::init(FbxScene*  pScene, IBody *kBody) {
 
 
-	FbxString bodyRootName = getPreffixedNodeName(kBody, "Root");
+	FbxString bodyRootName = getPreffixedNodeName(kBody, c_DefaultRootJointName);
 
 	// Create skeleton root Node
 	FbxSkeleton* lSkeletonRootAttribute = FbxSkeleton::Create(pScene, bodyRootName);
@@ -74,16 +79,50 @@ FbxNode * KinectSkeletonMapper::init(FbxScene*  pScene, IBody *kBody) {
 	// Add skeleton root Node to scene
 	pScene->GetRootNode()->AddChild(lSkeletonRoot);
 
-	// For Kinect, the sensor is placed at the origin, with the positive z-axis extending 
-	// in the direction in which the Kinect is pointed. We don't want that. When rigging we want the user
-	// to be facing the positive z-axis. We fix it here, by rotation the root around the z axis
-	//lSkeletonRoot->LclRotation.Set({ 180.0, 0.0, 180.0 });
-
 	// Create Joint Hierarchy
 	createHierarchy(pScene, kBody, lSkeletonRoot, c_defaultNodeHierarchy);
 
+	// Keyframes for T-pose at time 0
+	keyInCurrentOrientation(pScene, lSkeletonRoot);
 
 	return lSkeletonRoot;
+}
+
+
+/// <summary>
+/// Add keys for orientation at time t
+/// </summary>
+/// <param name="pScene">Fbx Scene</param>
+/// <param name="pNode">Fbx root Node</param>
+void KinectSkeletonMapper::keyInCurrentOrientation(FbxScene *pScene, FbxNode *pNode, FbxTime time) {
+
+	FbxAnimStack *baseAnimStack = pScene->GetCurrentAnimationStack();
+
+	// Anim Stack invalid
+	if (!baseAnimStack)
+		return;
+
+	FbxAnimLayer *baseAnimLayer = baseAnimStack->GetMember<FbxAnimLayer>();
+
+
+	// Retrieve node joint type
+	JointType nodeJointType = getJointTypeProperty(pNode);
+
+	// Translation only for the root joint
+	if (nodeJointType == c_kinectRootJointType) {
+		FbxDouble3 trans = pNode->LclTranslation.Get();
+		applyTransformation(baseAnimLayer, pNode, trans, time, true);
+	}
+
+	FbxDouble3 rot = pNode->LclRotation.Get();
+	applyTransformation(baseAnimLayer, pNode, rot, time, false);
+
+	int childCount = pNode->GetChildCount();
+	// Repeat for children
+	for (int i = 0; i < childCount; i++) {
+		FbxNode *childNode = pNode->GetChild(i);
+		keyInCurrentOrientation(pScene, childNode, time);
+	}
 }
 
 
@@ -110,13 +149,18 @@ void KinectSkeletonMapper::createHierarchy(FbxScene *pScene, IBody *kBody ,FbxNo
 	lSkeletonLimb->LclTranslation.Set(hNode->m_translation);
 	lSkeletonLimb->LclRotation.Set(hNode->m_rotation);
 
+	// Pre Rotation is active for this joint
+	if (hNode->m_preRot != FbxDouble3()) {
+		lSkeletonLimb->SetRotationActive(true);
+		lSkeletonLimb->SetPreRotation(FbxNode::eSourcePivot, hNode->m_preRot);
+	}
+
 	// Set color attribute ( yellow )
 	lSkeletonLimbAttribute->SetLimbNodeColor(FbxColor(1,1,0));
 
 	// Set joint ype
 	if ( hNode->m_kTwin < JointType_Count)
 		setJointTypeProperty(lSkeletonLimb, hNode->m_kTwin);
-
 
 	// Add node to hierarchy
 	fNode->AddChild(lSkeletonLimb);
@@ -188,7 +232,7 @@ void KinectSkeletonMapper::setJointTypeProperty(FbxNode *fNode, JointType kType)
 	FbxProperty lProperty = fNode->FindProperty(c_jointTypePropertyDefaultName);
 
 	if (!lProperty.IsValid()) {
-		lProperty = FbxProperty::Create(fNode, fbxsdk_2015_1::FbxIntDT, c_jointTypePropertyDefaultName, c_jointTypePropertyDefaultName);
+		lProperty = FbxProperty::Create(fNode, fbxsdk::FbxIntDT, c_jointTypePropertyDefaultName, c_jointTypePropertyDefaultName);
 	}
 	lProperty.Set(FbxInt(kType));
 }
@@ -270,30 +314,35 @@ void KinectSkeletonMapper::animateHierarchy(FbxAnimLayer*  pLayer, FbxNode *fNod
 
 
 	// Check if joint type is valid
-	if (nodeJointType < JointType_Count ) {
-
+	if (nodeJointType < JointType_Count && childCount > 0 ) {
+		
+		
 		// This is the root joint in Kinect
 		if (nodeJointType == c_kinectRootJointType) {
 			addTranslationKeys(pLayer, fNode, frameTime, kJoints[nodeJointType]);
-
 		}
+
 		// Set the orientation of this joint 
 		FbxNode *childNode = fNode->GetChild(0);
-		if (childCount == 1) {
-			JointType childJointType = getJointTypeProperty(childNode);
+		JointType childJointType = getJointTypeProperty(childNode);
 
-			if (childJointType < JointType_Count) {
+		if (childJointType < JointType_Count) {
+			if ( childCount == 1  ) {
 				if (!isOrientationNull(kOrientations[childJointType])) {
+					// Orientation for Kinect joints is always related to the parent bone
 					addRotationKeys(pLayer, fNode, frameTime, kOrientations[childJointType], accumullator);
 				}
-				else {
-					addRotationKeys(pLayer, fNode, frameTime, kOrientations[nodeJointType], accumullator);
+				else { // The trickiest case, no orientation information for the last bone
+					// We can estimate it ourselves, but there will not be roll rotation
+					FbxQuaternion ori = estimateBoneOri(childNode, kJoints[nodeJointType], kJoints[childJointType]);
+					addRotationKeys(pLayer, fNode, frameTime, ori, accumullator);
 				}
 			}
+			else {
+				addRotationKeys(pLayer, fNode, frameTime, kOrientations[nodeJointType], accumullator);
+			}
 		}
-		else {
-			addRotationKeys(pLayer, fNode, frameTime, kOrientations[nodeJointType], accumullator);
-		}
+
 	}
 
 
@@ -315,50 +364,21 @@ void KinectSkeletonMapper::animateHierarchy(FbxAnimLayer*  pLayer, FbxNode *fNod
 /// <param name="kJoint">Kinect joint to have position extracted from</param>
 void KinectSkeletonMapper::addTranslationKeys(FbxAnimLayer*  pLayer, FbxNode *fNode, INT64 frameTime, Joint &kJoint) {
 
-
-	// Extract curves
-	FbxAnimCurve *rootTranslationCurveX = fNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
-	FbxAnimCurve *rootTranslationCurveY = fNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
-	FbxAnimCurve *rootTranslationCurveZ = fNode->LclTranslation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
-
 	// Define X, Y and Z coordinates
 	FbxDouble3 originalPos = fNode->LclTranslation.Get();
+	float scalingFactor = c_positionalScalingFactor;
+	//float scalingFactor = getTranslationScaleProperty(fNode);
 	float Xpos, Ypos, Zpos;
-	Xpos = ((-kJoint.Position.X)*c_positionalScalingFactor) + ((float) originalPos[0]);
-	Ypos = (kJoint.Position.Y*c_positionalScalingFactor) + ((float)originalPos[1]);
-	Zpos = ((-kJoint.Position.Z)*c_positionalScalingFactor) + ((float)originalPos[2]);
+	Xpos = ((-kJoint.Position.X)*scalingFactor) + ((float)originalPos[0]);
+	Ypos = (kJoint.Position.Y*scalingFactor) + ((float)originalPos[1]);
+	Zpos = ((kJoint.Position.Z)*scalingFactor) + ((float)originalPos[2]);
 
-
-	// Problem extracting curves, just leave
-	if (!rootTranslationCurveX || !rootTranslationCurveY || !rootTranslationCurveZ)
-		return;
 
 	// Set key timestamp
 	FbxTime ltime;
 	ltime.SetMilliSeconds(frameTime);
 
-	rootTranslationCurveX->KeyModifyBegin();
-	rootTranslationCurveY->KeyModifyBegin();
-	rootTranslationCurveZ->KeyModifyBegin();
-
-	int keyIndex = rootTranslationCurveX->KeyAdd(ltime);
-	rootTranslationCurveY->KeyAdd(ltime);
-	rootTranslationCurveZ->KeyAdd(ltime);
-
-	rootTranslationCurveX->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationLinear);
-	rootTranslationCurveY->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationLinear);
-	rootTranslationCurveZ->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationLinear);
-
-	rootTranslationCurveX->KeySetValue(keyIndex, Xpos);
-	rootTranslationCurveY->KeySetValue(keyIndex, Ypos);
-	rootTranslationCurveZ->KeySetValue(keyIndex, Zpos);
-
-
-	rootTranslationCurveX->KeyModifyEnd();
-	rootTranslationCurveY->KeyModifyEnd();
-	rootTranslationCurveZ->KeyModifyEnd();
-
-
+	applyTransformation(pLayer, fNode, FbxDouble3(Xpos, Ypos, Zpos), ltime, true);
 }
 
 
@@ -372,27 +392,28 @@ void KinectSkeletonMapper::addTranslationKeys(FbxAnimLayer*  pLayer, FbxNode *fN
 /// <param name="accumullator">Used to compute orientations based on parent joint</param>
 void KinectSkeletonMapper::addRotationKeys(FbxAnimLayer*  pLayer, FbxNode *fNode, INT64 frameTime, JointOrientation &kOrientation, FbxAMatrix &accumullator) {
 
-
-	// Extract Rotation Curves
-	FbxAnimCurve *rotationCurveX = fNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
-	FbxAnimCurve *rotationCurveY = fNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
-	FbxAnimCurve *rotationCurveZ = fNode->LclRotation.GetCurve(pLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
-
-
-	// Problem extracting curves, just leave
-	if (!rotationCurveX || !rotationCurveY || !rotationCurveZ)
-		return;
-
-
 	// Joint orientation, represented as a quaternion
-	fbxsdk_2015_1::FbxQuaternion qRot;
+	fbxsdk::FbxQuaternion qRot;
 
 	//Extract quaternion from kinect
-	qRot = fbxsdk_2015_1::FbxQuaternion(kOrientation.Orientation.x, 
+	qRot = fbxsdk::FbxQuaternion(kOrientation.Orientation.x,
 		kOrientation.Orientation.y, kOrientation.Orientation.z, kOrientation.Orientation.w);
 
+	addRotationKeys(pLayer, fNode, frameTime, qRot, accumullator);
+}
+
+/// <summary>
+/// Extracts rotation information from kinect, and add it as a key to our animation layer
+/// </summary>
+/// <param name="pLayer">FBX  animation layer</param>
+/// <param name="fNode">FBX node to be animated</param>
+/// <param name="frameTime">Current frame time</param>
+/// <param name="qRot">Joint orientation as quaternion</param>
+/// <param name="accumullator">Used to compute orientations based on parent joint</param>
+void KinectSkeletonMapper::addRotationKeys(FbxAnimLayer*  pLayer, FbxNode *fNode, INT64 frameTime, FbxQuaternion qRot, FbxAMatrix &accumullator) {
+
 	// Decompose it into euler angles ( make sure to convert from absolute orientation to relative )
-	fbxsdk_2015_1::FbxAMatrix localOriMat, qMat;
+	fbxsdk::FbxAMatrix localOriMat, qMat;
 	qMat.SetQ(qRot);
 	localOriMat = accumullator.Inverse() * qMat;
 	FbxVector4 euler = localOriMat.GetR();
@@ -407,27 +428,7 @@ void KinectSkeletonMapper::addRotationKeys(FbxAnimLayer*  pLayer, FbxNode *fNode
 	FbxTime ltime;
 	ltime.SetMilliSeconds(frameTime);
 
-	rotationCurveX->KeyModifyBegin();
-	rotationCurveY->KeyModifyBegin();
-	rotationCurveZ->KeyModifyBegin();
-
-	int keyIndex = rotationCurveX->KeyAdd(ltime);
-	rotationCurveY->KeyAdd(ltime);
-	rotationCurveZ->KeyAdd(ltime);
-
-	rotationCurveX->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationCubic);
-	rotationCurveY->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationCubic);
-	rotationCurveZ->KeySetInterpolation(keyIndex, FbxAnimCurveDef::eInterpolationCubic);
-
-	// Define angle
-	rotationCurveX->KeySetValue(keyIndex, (float) euler[0]);
-	rotationCurveY->KeySetValue(keyIndex, (float) euler[1]);
-	rotationCurveZ->KeySetValue(keyIndex, (float) euler[2]);
-
-
-	rotationCurveX->KeyModifyEnd();
-	rotationCurveY->KeyModifyEnd();
-	rotationCurveZ->KeyModifyEnd();
+	applyTransformation(pLayer, fNode, euler, ltime, false);
 
 	// Update accumulator, based on local orientation
 	accumullator = accumullator * localOriMat;
@@ -462,7 +463,7 @@ void KinectSkeletonMapper::applyPostProcessingFilters(FbxScene*  pScene) {
 		FbxNode *fNode =  pScene->GetRootNode()->GetChild(i);
 		FbxNodeAttribute *fNodeAttribute =  fNode->GetNodeAttribute();  
 		if (fNodeAttribute && (fNodeAttribute->GetAttributeType() == FbxNodeAttribute::eSkeleton ) ) {
-			applyUnrollFilterHierarchically(lUnrollFilter, fNode->GetChild(0));
+			applyFilterHierarchically(lUnrollFilter, fNode->GetChild(0));
 		}
 	}
 
@@ -511,6 +512,39 @@ FbxVector4 KinectSkeletonMapper::makeRotationContinuous(FbxVector4 previousEuler
 	return resultingRotation;
 }
 
+/// <summary>
+/// Defines how translation values will be calculated
+/// </summary>
+/// <param name="fNode">Root FBX  node</param>
+/// <param name="kJoints">Kinect joint position info</param>
+void KinectSkeletonMapper::setTransScaling(FbxNode *fNode, Joint *joints) {
+
+	int childCount = fNode->GetChildCount();
+
+	if (childCount != 1)
+		return;
+	
+	FbxNode *rootChild = fNode->GetChild(0);
+	FbxNode *cChild = rootChild->GetChild(0);
+
+
+	JointType  rType = getJointTypeProperty(rootChild);
+	JointType  cType = getJointTypeProperty(cChild);
+
+	// Invalid joint type
+	if (rType >= JointType_Count || cType >= JointType_Count)
+		return;
+
+	CameraSpacePoint pr = joints[rType].Position;
+	CameraSpacePoint pc = joints[cType].Position;
+	
+	// Estimate the difference between real distance and the modelled
+	FbxVector4 modelV = cChild->LclTranslation.Get();
+	FbxVector4 realV(pc.X - pr.X, pc.Y - pr.Y, pc.Z - pr.Z);
+	double scale = modelV.Length() / realV.Length();
+
+	setTranslationScaleProperty(rootChild, float(scale));
+}
 
 
 /// <summary>
@@ -535,8 +569,46 @@ void KinectSkeletonMapper::setInitialAlignmentRules(FbxNode *fNode, Joint *joint
 	if (jType >= JointType_Count)
 		return;
 
-	FbxDouble3 rootChildVec = rootChild->LclTranslation.Get();
-	CameraSpacePoint jPos = joints[jType].Position;
-	//rootChildVec[1] = (jPos.Y*c_positionalScalingFactor) - (rootChildVec[1]);
-	//rootChild->LclTranslation.Set(rootChildVec);
+	Vector4 jOri = orientations[jType].Orientation;
+
+	FbxAMatrix initOriM;
+	initOriM.SetQ(FbxQuaternion(jOri.x, jOri.y, jOri.z, jOri.w));
+
+	// We need to account for reference node initial alignment
+	FbxAMatrix refAlignM;
+	refAlignM.SetR(FbxDouble3(0, 180, 0));
+
+	// Obtain global orientation
+	initOriM = refAlignM * initOriM;
+
+	FbxVector4 initOriEuler = initOriM.GetR();
+	initOriEuler[1] = initOriEuler[2] = 0; // We just need to compensate for the x axis
+
+	// Let us compensate for inclination added by sensor
+	rootChild->SetRotationActive(true);
+	rootChild->SetPreRotation(FbxNode::eSourcePivot, initOriEuler);
+}
+
+/// <summary>
+/// Estimates rotation between parent joint and hild joint. Used to compensate for missing Kinect info
+/// </summary>
+/// <param name="cNode">Child FBX Node</param>
+/// <param name="pJoint">Parent Kinect Joint</param>
+/// <param name="cJoint">Child Kinect Joint</param>
+FbxQuaternion KinectSkeletonMapper::estimateBoneOri(FbxNode *cNode, const Joint &pJoint, const Joint &cJoint) {
+
+	FbxVector4 ref = cNode->LclTranslation.Get();
+	ref.Normalize();
+	FbxVector4 goal(cJoint.Position.X - pJoint.Position.X, cJoint.Position.Y - pJoint.Position.Y, cJoint.Position.Z - pJoint.Position.Z);
+	goal.Normalize();
+
+	// We got our axis-angle ( Not supported by FBX, convert to quaternion )
+	FbxVector4 axisAngle = ref.CrossProduct(goal);
+	axisAngle.Normalize();
+	double angle = acos(ref.DotProduct(goal));
+	axisAngle[3] = angle;
+
+		// To quaternion
+	FbxQuaternion quat = axisAngleToQuat(axisAngle);
+	return quat;
 }

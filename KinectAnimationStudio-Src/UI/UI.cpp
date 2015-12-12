@@ -14,8 +14,10 @@ HWND      ghWnd = NULL;                 // main window
 TCHAR szTitle[MAX_LOADSTRING];          // The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];    // the main window class name
 
-char gszInputFile[_MAX_PATH];            // File name to import
-char gszOutputFile[_MAX_PATH];           // File name to decompress
+TCHAR viewWindowClass[MAX_LOADSTRING];    // the view window class name
+
+
+char gszOutputFile[_MAX_PATH];           // File name to write to
 int  gWriteFileFormat = -1;             // Write file format
 
 // Global FBX SDK manager
@@ -41,20 +43,13 @@ End of Global Variables:
 
 
 // Forward declarations of functions included in this code module:
-ATOM                UIRegisterClass(HINSTANCE hInstance);
+ATOM                UIRegisterClass(HINSTANCE hInstance, WNDPROC WndProc, LPCSTR lpszClassName , bool isSub = false);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK    ViewProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void CreateUIControls(HWND hWndParent);
-void GetInputFileName(HWND hWndParent);
-void GetOutputFileName(HWND hWndParent);
-
-// used to show messages from the ImportExport.cxx file
-// void UI_Printf(const char* msg, ...);
-
-// used to check if in the filepath the file extention exist
-bool ExtExist(const char * filepath, const char * ext);
 
 static bool gAutoQuit = false;
 
@@ -75,10 +70,16 @@ int APIENTRY _tWinMain(
     // Initialize global strings
     LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadString(hInstance, IDC_UI, szWindowClass, MAX_LOADSTRING);
-    UIRegisterClass(hInstance);
+	if (UIRegisterClass(hInstance, WndProc, szWindowClass) == 0)
+		return FALSE;
+
+	// Initialize view window class
+	LoadString(hInstance, IDC_VIEW, viewWindowClass, MAX_LOADSTRING);
+	if (UIRegisterClass(hInstance, ViewProc, viewWindowClass, true) == 0)
+		return FALSE;
+
 
     // empty our global file name buffer
-    ZeroMemory(gszInputFile,  sizeof(gszInputFile)  ); 
     ZeroMemory(gszOutputFile, sizeof(gszOutputFile) ); 
 
     // Perform application initialization:
@@ -110,22 +111,29 @@ int APIENTRY _tWinMain(
 //  PURPOSE: Registers the window class.
 //
 ATOM UIRegisterClass(
-                     HINSTANCE hInstance
+	HINSTANCE hInstance, WNDPROC Proc, LPCSTR lpszClassName , bool isSub
                      )
 {
     WNDCLASSEX wcex;
 
+	DWORD brushColor;
+	if (!isSub)
+		brushColor = GetSysColor(COLOR_3DFACE);
+	else
+		brushColor = GetSysColor(COLOR_3DHIGHLIGHT);
+
+
     wcex.cbSize         = sizeof(WNDCLASSEX);
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
+	wcex.style =  CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = Proc;
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_UI));
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground  = CreateSolidBrush( GetSysColor(COLOR_3DFACE) );
+    wcex.hbrBackground  = CreateSolidBrush( brushColor );
     wcex.lpszMenuName   = MAKEINTRESOURCE(IDC_UI);
-    wcex.lpszClassName  = szWindowClass;
+	wcex.lpszClassName = lpszClassName;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_UI));
 
     return RegisterClassEx(&wcex);
@@ -151,7 +159,7 @@ BOOL InitInstance(
     ghWnd = CreateWindow(
         szWindowClass,                        // LPCTSTR lpClassName
         "Kinect Animation Studio",   // LPCTSTR caption 
-        WS_OVERLAPPED | WS_SYSMENU,           // DWORD dwStyle
+        WS_OVERLAPPED | WS_SYSMENU | WS_CLIPCHILDREN,           // DWORD dwStyle
         400,                                  // int x
         200,                                  // int Y
         1250,                                  // int nWidth
@@ -191,7 +199,7 @@ LRESULT CALLBACK WndProc(
     {
 
     case WM_CREATE:
-        {
+	{
             CreateUIControls(hWnd);
 			
 			// Initalize FBX SDK Manager
@@ -203,28 +211,27 @@ LRESULT CALLBACK WndProc(
 			// Associate the Kinect Exporter with the FBX SDK mmanager
 			kExporter->initFBXSDKManager(gSdkManager);
 
-			// Attach visualizer to window VIEW_STATUS
-			// get the HWND of the editbox
-			HWND hWndView = GetDlgItem(hWnd, VIEW_STATUS);
-			HRESULT hr = kVisualizer->attach(hWndView); // attach it to a screen
-			if (FAILED(hr)) {
-				UI_Printf("Failed to attach to Kinect Viewing Window.");
-			}
-
 			// Associate frame reader Kinect frame processor
 			kFrameProcessor.init(gKinectSensor);
+
+
+			// Attach visualizer to window VIEW_STATUS
+			// get the HWND of the editbox
+			HWND hWndView = GetDlgItem(hWnd, VIEW_STATUS );
+			if ( hWndView && !kVisualizer->is_attached()) {
+				HRESULT hr = kVisualizer->attach(hWndView); // attach it to a screen
+				if (FAILED(hr)) {
+					UI_Printf("Failed to attach to Kinect Viewing Window.");
+				}
+			}
 
 			// kExporter and kVisualizer need to subscribe to the frame processor
 			// this way they will receive frames
 			kFrameProcessor.subscribe(std::dynamic_pointer_cast<KBodyReader>(kExporter));
 			kFrameProcessor.subscribe(std::dynamic_pointer_cast<KBodyReader>(kVisualizer));
 
-        }
-        break;
-	case WM_PAINT:
-		kVisualizer->update();
-		break;
-
+	}
+    break;
     case WM_COMMAND:
 
         wmId    = LOWORD(wParam);
@@ -242,7 +249,7 @@ LRESULT CALLBACK WndProc(
             break;
 
         case EXPORT_TO_BUTTON:
-			GetOutputFileName(hWnd);
+			GetOutputFileName(hWnd, gszOutputFile);
 			kExporter->setExportFile(gszOutputFile);
             break;
 
@@ -277,6 +284,34 @@ LRESULT CALLBACK WndProc(
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
+}
+
+//
+//  FUNCTION: ViewProc(HWND, UINT, WPARAM, LPARAM)
+//
+//  PURPOSE:  Processes messages for the view status window
+//
+LRESULT CALLBACK ViewProc(
+	HWND hWnd,
+	UINT message,
+	WPARAM wParam,
+	LPARAM lParam
+	) {
+
+
+	switch (message) {
+		case WM_PAINT:
+		{
+			if (!kVisualizer->is_attached()) {
+				kVisualizer->attach(hWnd);
+			}
+			kVisualizer->update();
+		}
+		break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
 }
 
 // Message handler for about box.
@@ -320,7 +355,7 @@ void CreateUIControls(
 {
     DWORD dwStyle = WS_CHILD | WS_VISIBLE;
 
-    // create the <Import from> button
+    // create the <Export to> button
     CreateWindowEx( 
         0,                          // DWORD dwExStyle,
         "BUTTON",                   // LPCTSTR lpClassName
@@ -379,7 +414,7 @@ void CreateUIControls(
         530,                            // int nWidth
         20,                             // int nHeight    
         hWndParent,                     // HWND hWndParent
-        (HMENU) IMPORT_FROM_EDITBOX,    // HMENU hMenu or control's ID for WM_COMMAND 
+        (HMENU) EXPORT_TO_EDITBOX,    // HMENU hMenu or control's ID for WM_COMMAND 
         hInst,                          // HINSTANCE hInstance
         NULL                            // LPVOID lpParam
         );
@@ -401,13 +436,12 @@ void CreateUIControls(
         NULL                                // LPVOID lpParam
         );
 
-
 	// create the <View Status> edit box
 	CreateWindowEx(
 		WS_EX_STATICEDGE,                   // DWORD dwExStyle,
-		"STATIC",                             // LPCTSTR lpClassName
+		viewWindowClass,                             // LPCTSTR lpClassName
 		"",                                 // LPCTSTR lpWindowName / control caption
-		dwStyle | SS_OWNERDRAW | SS_ICON,             // DWORD dwStyle
+		dwStyle | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,             // DWORD dwStyle
 		700,                                // int x
 		15,                                 // int y
 		500,                                // int nWidth
@@ -419,106 +453,4 @@ void CreateUIControls(
 		);
 }
 
-// show the <Open file> dialog
-void GetInputFileName(
-                      HWND hWndParent
-                      )
-{
-    OPENFILENAME ofn;
-    ZeroMemory(&ofn, sizeof(ofn));
 
-    char szFile[_MAX_PATH];  // buffer for file name
-    ZeroMemory(szFile, sizeof(szFile));
-
-    // Initialize OPENFILENAME
-    ofn.lStructSize     = sizeof(ofn);
-    ofn.hwndOwner       = hWndParent;
-    ofn.lpstrFile       = szFile;
-    ofn.nMaxFile        = sizeof(szFile);
-    ofn.nFilterIndex    = 1;
-    ofn.lpstrFileTitle  = NULL;
-    ofn.nMaxFileTitle   = 0;
-    ofn.lpstrInitialDir = NULL;
-    ofn.lpstrTitle      = "Select the file to import from ... (use the file type filter)";
-    ofn.Flags           = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-    // get a description of all readers registered in the FBX SDK
-    const char *filter  = GetReaderOFNFilters(); 
-    ofn.lpstrFilter     = filter;
-
-    // Display the Open dialog box. 
-    if(GetOpenFileName(&ofn) == false)
-    {
-        // user cancel
-        delete filter;
-        return;
-    }
-
-    delete filter;
-
-    // show the file name selected
-    SetWindowText( GetDlgItem(hWndParent, IMPORT_FROM_EDITBOX),  szFile );
-
-    // Keep a copy of the file name
-    FBXSDK_strcpy(gszInputFile, _MAX_PATH, szFile);
-}
-
-// show the <Save file> dialog
-void GetOutputFileName(
-                       HWND hWndParent
-                       )
-{
-    OPENFILENAME ofn;
-    ZeroMemory(&ofn, sizeof(ofn));
-
-    char szFile[_MAX_PATH];  // buffer for file name
-    ZeroMemory(szFile, sizeof(szFile));
-
-    // Initialize OPENFILENAME
-    ofn.lStructSize     = sizeof(ofn);
-    ofn.hwndOwner       = hWndParent;
-    ofn.lpstrFile       = szFile;
-    ofn.nMaxFile        = sizeof(szFile)/ sizeof(*szFile); 
-    ofn.nFilterIndex    = 1;      // *.fbx binairy by default
-    ofn.lpstrFileTitle  = NULL;
-    ofn.nMaxFileTitle   = 0;
-    ofn.lpstrInitialDir = NULL;
-    ofn.lpstrTitle      = "Select the file to export to ... (use the file type filter)";
-    ofn.Flags           = OFN_EXPLORER | OFN_OVERWRITEPROMPT;
-
-    // get a description of all writers registered in the FBX SDK
-    const char *filter  = GetWriterSFNFilters();
-    ofn.lpstrFilter     = filter;
-
-    // Display the save as dialog box. 
-    if(GetSaveFileName(&ofn) == false)
-    {
-        // User cancel ...
-        delete filter;
-        return;
-    }
-
-    delete filter;
-
-    // keep the selected file format writer
-    // ofn.nFilterIndex is not 0 based but start at 1, the FBX SDK file format enum start at 0
-    gWriteFileFormat = ofn.nFilterIndex - 1; 
-
-    // get the extention string from the file format selected by the user
-    const char * ext = GetFileFormatExt( gWriteFileFormat );
-
-    // check for file extention
-    if(ExtExist(szFile, ext) == false)
-    {
-        // add the selected file extention
-        FBXSDK_strcat(szFile, _MAX_PATH, ext);
-    }
-
-    delete ext;
-
-    // show the file name selected with the extention
-    SetWindowText( GetDlgItem(hWndParent, DECOMPRESS_TO_EDITBOX), szFile);
-
-    // Keep a copy of the file name
-    FBXSDK_strcpy(gszOutputFile, _MAX_PATH, szFile);
-}
