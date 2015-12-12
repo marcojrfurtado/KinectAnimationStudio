@@ -30,10 +30,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="UI\FBX_banner_545x132_SDK.bmp">
+    <Image Include="UI\UI.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="UI\UI.ico">
+    <Image Include="UI\About_banner.bmp">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

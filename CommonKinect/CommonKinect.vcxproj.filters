@@ -30,9 +30,6 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="kinect2fbx\HierarchyNodeDefinition.h">
       <Filter>Header Files\kinect2fbx</Filter>
     </ClInclude>
@@ -43,7 +40,16 @@
       <Filter>Header Files\helpers</Filter>
     </ClInclude>
     <ClInclude Include="CommmonKinect.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="helpers\FBX_helpers.h">
+      <Filter>Header Files\helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="helpers\UI_helpers.h">
+      <Filter>Header Files\helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="helpers\WindowIDS.h">
+      <Filter>Header Files\helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -57,6 +63,12 @@
       <Filter>Source Files\kinect2fbx</Filter>
     </ClCompile>
     <ClCompile Include="helpers\Kinect_Helpers.cpp">
+      <Filter>Source Files\helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="helpers\FBX_helpers.cpp">
+      <Filter>Source Files\helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="helpers\UI_helpers.cpp">
       <Filter>Source Files\helpers</Filter>
     </ClCompile>
   </ItemGroup>

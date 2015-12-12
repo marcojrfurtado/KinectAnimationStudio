@@ -20,10 +20,6 @@
       <AdditionalLibraryDirectories>$(FBX_ROOT)\lib\vs2013\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-	<Lib>
-	  <AdditionalLibraryDirectories>$(FBX_ROOT)\lib\vs2013\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-	  <AdditionalDependencies Condition="'$(PlatformToolset)'=='v120'">libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
-	</Lib>
   </ItemDefinitionGroup>
 
   <!-- Release|x64 -->

@@ -28,6 +28,9 @@ KinectFrameProcessor::~KinectFrameProcessor()
 	// Leave loop
 	quitMain = true;
 
+	if (!m_pKinectSensor)
+		return;
+
 	// Waits for asynchronous taks to join
 	std::future_status status;
 	do {

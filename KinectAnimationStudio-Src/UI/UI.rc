@@ -67,12 +67,12 @@ END
 // Dialog
 //
 
-IDD_ABOUTBOX DIALOGEX 22, 17, 273, 83
+IDD_ABOUTBOX DIALOGEX 22, 17, 413, 83
 STYLE DS_SETFONT | DS_MODALFRAME | WS_CAPTION | WS_SYSMENU
 CAPTION "About"
 FONT 8, "System", 0, 0, 0x0
 BEGIN
-    LTEXT           "© 2009 Autodesk, Inc.  All rights reserved.",IDC_STATIC,3,72,195,8,SS_NOPREFIX
+    LTEXT           "© 2015 Antonio Carlos Furtado  All rights reserved.",IDC_STATIC,3,72,195,8,SS_NOPREFIX
     DEFPUSHBUTTON   "OK",IDOK,232,68,39,13,WS_GROUP
     CONTROL         129,IDC_STATIC,"Static",SS_BITMAP,0,0,273,66
 END
@@ -115,6 +115,7 @@ STRINGTABLE
 BEGIN
     IDS_APP_TITLE           "UI"
     IDC_UI                  "UI"
+	IDC_VIEW				"View"
 END
 
 #endif    // English (U.S.) resources
@@ -135,7 +136,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_CAN
 // Bitmap
 //
 
-IDB_BITMAP1             BITMAP                  "FBX_banner_545x132_SDK.bmp"
+IDB_BITMAP1             BITMAP                  "About_banner.bmp"
 #endif    // English (Canada) resources
 /////////////////////////////////////////////////////////////////////////////
 

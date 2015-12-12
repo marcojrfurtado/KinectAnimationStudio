@@ -87,6 +87,9 @@ private:
 	// Number of frames processed for current scene
 	unsigned int m_nRecordCount;
 
+	// Initial timestamp
+	INT64 m_initTime;
+
 
 	// Export file
 	char *m_exportFileName;

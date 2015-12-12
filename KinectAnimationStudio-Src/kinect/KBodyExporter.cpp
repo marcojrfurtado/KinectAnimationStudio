@@ -9,6 +9,7 @@ m_pIsRecording(false),
 m_pFBXManager(NULL),
 m_lScene(NULL),
 m_nRecordCount(0),
+m_initTime(0),
 m_exportFileName(NULL),
 KBodyReader(kSensor)
 {
@@ -136,11 +137,12 @@ void KBodyExporter::flushScene() {
 /// </summary>
 void KBodyExporter::addBodiesToScene() {
 
+
 	// If failed to read bodies for the last frame, just skip everything
 	if (!m_pBodyReadStatus)
 		return;
 
-	
+
 	// Process each body individually
 	for (int i = 0; i < BODY_COUNT; ++i)
 	{
@@ -150,9 +152,15 @@ void KBodyExporter::addBodiesToScene() {
 			BOOLEAN isTracked;
 			HRESULT hr =  pBody->get_IsTracked(&isTracked);
 
+
 			if (SUCCEEDED(hr) && isTracked) {
-				// Map each body to the scene
-				KinectSkeletonMapper::map(m_lScene, (1 + m_nRecordCount ) * (1000/c_KinectFPS), pBody);
+				// Kinect clock works in increments of 100ns. Who the hell needs documentation, let people figure it out.
+				INT64 timeMS = m_tlatestFrameTime / 10000;
+
+				if (m_initTime == 0)
+					m_initTime = timeMS;
+
+				KinectSkeletonMapper::map(m_lScene, timeMS - m_initTime + 1, pBody);
 			}
 		}
 	}

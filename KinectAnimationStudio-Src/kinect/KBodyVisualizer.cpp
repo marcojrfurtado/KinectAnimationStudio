@@ -55,7 +55,6 @@ KBodyReader(kSensor)
 /// </summary>
 KBodyVisualizer::~KBodyVisualizer()
 {
-
 	// Release D2D structure
 	SafeRelease(m_pBrushBoneInferred);
 	SafeRelease(m_pBrushBoneTracked);
@@ -147,25 +146,35 @@ HRESULT KBodyVisualizer::attach(HWND hWnd)
 /// <summary>
 /// Redraw window
 /// </summary>
-HRESULT KBodyVisualizer::update() {
-	HRESULT hr = S_OK;
-
-	// Attachment has not been performed yet
-	if (m_pRT == NULL ) {
-		return hr;
-	}
-
+bool KBodyVisualizer::update() {
+	PAINTSTRUCT ps;
+	BeginPaint(m_hWnd, &ps);
 	m_pRT->BeginDraw();
-
-
 
 	// Read in Kinect Body information, and process all of them
 	ReceiveBodiesInfo();
-	
 
-	hr = m_pRT->EndDraw();
+	m_pRT->EndDraw();
+	EndPaint(m_hWnd, &ps);
+	return true;
+}
 
-	return hr;
+/// <summary>
+/// Notify class about a frame that arrived
+/// </summary>
+/// <param name="bFrame">Incoming frame</param>
+/// <param name="frameTime">Frame timestamp</param>
+void KBodyVisualizer::notify(IBodyFrame *bFrame, INT64 frameTime) {
+
+	// If visualizer is not attached to a window, just return
+	if (!m_hWnd)
+		return;
+
+	// Use the general notifier first, it will save the bodies of the current frame
+	KBodyReader::notify(bFrame, frameTime);
+
+	// Draw skeleton
+	update();
 }
 
 

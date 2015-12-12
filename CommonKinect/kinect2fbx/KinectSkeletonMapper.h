@@ -24,9 +24,12 @@ public:
 	static void applyPostProcessingFilters(FbxScene*  pScene);
 private:
 
+
 	// Constants:
 	// Define how skeletons should be identified in the FBX scene
 	static const char *c_SkelRootIdPatternPreffix;
+	// Root joint name
+	static const char *c_DefaultRootJointName;
 	// Define node hierarchy
 	static const std::shared_ptr<HierarchyNodeDefinition> c_defaultNodeHierarchy;
 	// Default name used by us to store Kinect's Joint type in FBX file
@@ -131,6 +134,16 @@ private:
 	static void addRotationKeys(FbxAnimLayer*  pLayer, FbxNode *fNode, INT64 frameTime, JointOrientation &kOrientation, FbxAMatrix &accumullator);
 
 	/// <summary>
+	/// Extracts rotation information from kinect, and add it as a key to our animation layer
+	/// </summary>
+	/// <param name="pLayer">FBX  animation layer</param>
+	/// <param name="fNode">FBX node to be animated</param>
+	/// <param name="frameTime">Current frame time</param>
+	/// <param name="qRot">Joint orientation as quaternion</param>
+	/// <param name="accumullator">Used to compute orientations based on parent joint</param>
+	static void addRotationKeys(FbxAnimLayer*  pLayer, FbxNode *fNode, INT64 frameTime, FbxQuaternion qRot, FbxAMatrix &accumullator);
+
+	/// <summary>
 	/// Finds euler rotation for key with certain index
 	/// </summary>
 	/// <param name="keyIndex">Index of the desired key</param>
@@ -150,12 +163,26 @@ private:
 
 
 	/// <summary>
+	/// Defines how translation values will be calculated
+	/// </summary>
+	/// <param name="fNode">Root FBX  node</param>
+	/// <param name="kJoints">Kinect joint position info</param>
+	static void setTransScaling(FbxNode *fNode, Joint *joints);
+
+	/// <summary>
 	/// Sets some initial alignment rules, based on assumptions about the sensor
 	/// </summary>
 	/// <param name="fNode">Root FBX  node</param>
 	/// <param name="kJoints">Kinect joint position info</param>
 	/// <param name="kOrientations">Kinect joint orientation info</param>
 	static void KinectSkeletonMapper::setInitialAlignmentRules(FbxNode *fNode, Joint *kJoints, JointOrientation *kOrientations);
+
+	/// <summary>
+	/// Add keys for orientation at time t
+	/// </summary>
+	/// <param name="pScene">Fbx Scene</param>
+	/// <param name="pNode">Fbx root Node</param>
+	static void KinectSkeletonMapper::keyInCurrentOrientation(FbxScene *pScene, FbxNode *pNode, FbxTime time = 0);
 
 	/// <summary>
 	/// Get Identity Mat
@@ -176,5 +203,13 @@ private:
 			ori.Orientation.z == 0.0 &&
 			ori.Orientation.w == 0.0;
 	}
+
+	/// <summary>
+	/// Estimates rotation between parent joint and hild joint. Used to compensate for missing Kinect info
+	/// </summary>
+	/// <param name="cNode">Child FBX Node</param>
+	/// <param name="pJoint">Parent Kinect Joint</param>
+	/// <param name="cJoint">Child Kinect Joint</param>
+	static FbxQuaternion estimateBoneOri(FbxNode *cNode, const Joint &pJoint, const Joint &cJoint);
 
 };

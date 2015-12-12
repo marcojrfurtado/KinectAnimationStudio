@@ -71,15 +71,14 @@ std::shared_ptr<HierarchyNodeDefinition>     GetDefaultHierarchyNodeDefinition()
 	Hips->m_translation[1] = 90.23;
 
 	LeftUpLeg->m_translation[0] = 10.89;
-	LeftUpLeg->m_rotation[2] = -180;
+	LeftUpLeg->m_rotation[2] = 180;
 
 	LeftLeg->m_translation[1] = 44.03;
 
 	LeftFoot->m_translation[1] = 41.45;
-	LeftFoot->m_rotation[1] = 33.0;
+	LeftFoot->m_rotation[0] = 90;
 
-	LeftToeBase->m_translation = { 0.0, 8.82, 5.18 };
-	LeftToeBase->m_rotation = { -5.0, 0.0, 0.0 };
+	LeftToeBase->m_translation = { 0.0, 5.18, 0.0 };
 
 
 	RightUpLeg->m_translation[0] = -10.89;
@@ -88,33 +87,27 @@ std::shared_ptr<HierarchyNodeDefinition>     GetDefaultHierarchyNodeDefinition()
 	RightLeg->m_translation[1] = 44.03;
 
 	RightFoot->m_translation[1] = 41.45;
-	RightFoot->m_rotation[0] = 33.0;
+	RightFoot->m_rotation[0] = 90;
 
-	RightToeBase->m_translation = { 0.0, 8.82, 5.18 };
-	RightToeBase->m_rotation = { -5.0, 0.0, 0.0 };
+	RightToeBase->m_translation = { 0.0, 5.18, 0 };
 
 	Spine->m_translation = { 0.0, 18.77, 0.0 };
 
-	//Spine1->m_translation = { 0.0, 23.33, 0.0 };
 
 	Neck->m_translation = { 0.0, 24.33, 0.0 };
+	Neck->m_rotation[1] = 180;
 
 	Head->m_translation = { 0.0, 12.56, 0.0 };
 
 	LeftShoulder->m_translation = { 20.0, 24.33, 0.0 };
-	LeftShoulder->m_rotation = { 0.0, 0.0 , -125.0  };
-
-	LeftArm->m_rotation[2] = 35.0;
+	LeftShoulder->m_rotation[2] = -90;
 
 	LeftForeArm->m_translation[1] = 25.0;
 
 	LeftHand->m_translation[1] = 25.0;
 
-
 	RightShoulder->m_translation = { -20.0, 24.33, 0.0 };
-	RightShoulder->m_rotation = { 0.0, 0.0, 125.0 };
-
-	RightArm->m_rotation[2] = -35.0;
+	RightShoulder->m_rotation[2] = 90;
 
 	RightForeArm->m_translation[1] = 25.0;
 
