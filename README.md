@@ -1,8 +1,19 @@
 # KinectAnimationStudio
-Use your Kinect V2 for animation. Export it to FBX.
 
-# Requirements
+__KinectAnimationStudio exports Kinect V2 skeleton data as FBX motion files. Ideal for animating 3D models. __
 
-1. Kinect SDK (v2)
+* No installation.
+* Works with live capture or pre-recorded data (through Kinect Studio)
+* Straightforward use. Does not require setting additional parameters.
 
-2. Austodesk FBX SDK 2015.1 VS2013
+## System Requirements ( not including build requirements )
+
+* Windows 8 or later
+* 64-bit (x64) processor
+* [Kinect SDK V2.0](http://www.microsoft.com/en-ca/download/details.aspx?id=44561)
+
+See [this page](http://marcojrfurtado.github.io/KinectAnimationStudio) for more info and build instructions.
+
+## License
+
+MIT
