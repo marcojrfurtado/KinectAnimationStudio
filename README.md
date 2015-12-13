@@ -1,6 +1,6 @@
 # KinectAnimationStudio
 
-__KinectAnimationStudio exports Kinect V2 skeleton data as FBX motion files. Ideal for animating 3D models. __
+__KinectAnimationStudio exports Kinect V2 skeleton data as FBX motion files. Ideal for animating 3D models.__
 
 * No installation.
 * Works with live capture or pre-recorded data (through Kinect Studio)
