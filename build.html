@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A layout example with a side menu that hides on mobile, just like the Pure website.">
+
+    <title>KinectAnimationStudio - Build</title>
+
+<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+<link rel="stylesheet" href="css/layouts/side-menu.css">
+
+</head>
+<body>
+
+
+
+
+
+
+<div id="layout">
+    <!-- Menu toggle -->
+    <a href="#menu" id="menuLink" class="menu-link">
+        <!-- Hamburger icon -->
+        <span></span>
+    </a>
+
+    <div id="menu">
+        <div class="pure-menu">
+            <div  class="logo-container">
+				<img src="resources/logo2.png" width="100%" alt="KinectAnimationStudio"/>
+			</div>
+
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item"><a href="index.html" class="pure-menu-link">About</a></li>
+                <li class="pure-menu-item"><a href="usage.html" class="pure-menu-link">Usage</a></li>
+
+                <li class="pure-menu-item pure-menu-selected" class="menu-item-divided pure-menu-selected">
+                    <a href="build.html" class="pure-menu-link">Build Instructions</a>
+                </li>
+				<li class="pure-menu-item" class="menu-item-divided pure-menu-selected">
+                    <a href="https://github.com/marcojrfurtado/KinectAnimationStudio" class="pure-menu-link">Source</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="main">
+        <div class="header">
+            <h1>Build Instructions</h1>
+            <h2>Compilation requirements and tips.</h2>
+        </div>
+
+        <div class="content">
+            <h2 class="content-subhead">Requirements</h2>
+            <p>
+				<ul class="textlist">
+					<li>Visual Studio 2013. Might work with other versions, but project migration has not been tested.</li>
+					<li>Download and install <a href="http://www.microsoft.com/en-ca/download/details.aspx?id=44561">Kinect SDK 2.0</a></li>
+					<li>Download and install <a href="http://usa.autodesk.com/adsk/servlet/pc/item?id=24746731&siteID=123112">FBX SDK 2016 VS2013</a></li>
+					<ul class="textlist">
+						<li>Works with previous FBX SDK versions. Check bottom for instructions.</li>
+					</ul>
+				</ul>            
+			</p>
+			
+			<h2 class="content-subhead">Property Manager</h2>
+            <p>
+				Library linking settings are organized as VS property manager files (.props). 
+				If SDKs are installed using default parameters, no changes are necessary. In this case, just open the solution file (.sln) and build the project.
+				Otherwise, the following change to property manager files is necessary:
+               <ul class="textlist">
+					<li><b>FBXProject.props:</b> Ensure that the macro FBX_ROOT points to the folder where the FBX SDK was installed.</li>
+					<li><b>KinectProject.props:</b> Relies on the path provided by the system variable KINECTSDK20_DIR, which is supposed to be set when the Kinect V2 SDK is installed. 
+					If this variable is not set, you can define it yourself, or create a macro on the same file.</li>
+				</ul>
+            </p>
+			
+			<h2 class="content-subhead">Tips</h2>
+            <p>
+				Using older FBX SDK versions
+               <ul class="textlist">
+					<li>Update FBXProject.props accordingly</li>
+					<li>Replace libfbxsdk.dll after building project (on the executable folder) with the appropriate version.</li>
+				</ul>
+            </p>		
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<script src="js/ui.js"></script>
+
+
+</body>
+</html>

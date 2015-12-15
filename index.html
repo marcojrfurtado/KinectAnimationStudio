@@ -1,1 +1,105 @@
-My Page
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A layout example with a side menu that hides on mobile, just like the Pure website.">
+
+    <title>KinectAnimationStudio</title>
+
+<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+<link rel="stylesheet" href="css/layouts/side-menu.css">
+
+</head>
+<body>
+
+
+
+
+
+
+<div id="layout">
+    <!-- Menu toggle -->
+    <a href="#menu" id="menuLink" class="menu-link">
+        <!-- Hamburger icon -->
+        <span></span>
+    </a>
+
+    <div id="menu">
+        <div class="pure-menu">
+            <div  class="logo-container">
+				<img src="resources/logo2.png" width="100%" alt="KinectAnimationStudio"/>
+			</div>
+
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item pure-menu-selected"><a href="index.html" class="pure-menu-link">About</a></li>
+                <li class="pure-menu-item"><a href="usage.html" class="pure-menu-link">Usage</a></li>
+
+                <li class="pure-menu-item" class="menu-item-divided pure-menu-selected">
+                    <a href="build.html" class="pure-menu-link">Build Instructions</a>
+                </li>
+								<li class="pure-menu-item" class="menu-item-divided pure-menu-selected">
+                    <a href="https://github.com/marcojrfurtado/KinectAnimationStudio" class="pure-menu-link">Source</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="main">
+
+        <div class="header">
+            <h1>KinectAnimationStudio</h1>
+            <h2>Generate motion data from your Kinect V2 Skeletons.</h2>
+        </div>
+        <div class="content">
+            <h2 class="content-subhead">Introduction</h2>
+            <p>
+                KinectAnimationStudio is a simple tool that can be used to export Kinect Skeleton data as Autodesk FBX files.
+            </p>
+			
+			<h2 class="content-subhead">Advantages</h2>
+            <p>
+               <ul class="textlist">
+					<li>No installation;</li>
+					<li>Works with live capture or pre-recorded data (through Kinect Studio);</li>
+					<li>Supports multiple skeletons;</li>
+					<li>Straightforward use. Does not require setting additional parameters.</li>
+				</ul>
+            </p>
+			
+			<h2 class="content-subhead">Download (latest release)</h2>
+            <p>
+				<a href="https://github.com/marcojrfurtado/KinectAnimationStudio/releases/download/0.1/KinectAnimationStudio-0.1-win64.zip">Windows x64 binary</a>
+            </p>
+
+            <h2 class="content-subhead">System Requirements</h2>
+            <p>
+               <ul class="textlist">
+					<li>Windows 8 or later.</li>
+					<li>64-bit (x64) processor</li>
+					<li><a href="http://www.microsoft.com/en-ca/download/details.aspx?id=44561">Kinect SDK 2.0</a></li>
+				</ul>            </p>
+
+            <div class="pure-g">
+                <div class="pure-u-5-5">
+                    <img class="pure-img-responsive" src="resources/exec.PNG" alt="Program Window">
+                </div>
+            </div>
+
+            <h2 class="content-subhead">License</h2>
+            <p>
+				<a href="http://opensource.org/licenses/MIT">The MIT License (MIT)</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<script src="js/ui.js"></script>
+
+
+</body>
+</html>

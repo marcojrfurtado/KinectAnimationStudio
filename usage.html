@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A layout example with a side menu that hides on mobile, just like the Pure website.">
+
+    <title>KinectAnimationStudio - Usage</title>
+
+<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+<link rel="stylesheet" href="css/layouts/side-menu.css">
+
+</head>
+<body>
+
+
+
+
+
+
+<div id="layout">
+    <!-- Menu toggle -->
+    <a href="#menu" id="menuLink" class="menu-link">
+        <!-- Hamburger icon -->
+        <span></span>
+    </a>
+
+    <div id="menu">
+        <div class="pure-menu">
+            <div  class="logo-container">
+				<img src="resources/logo2.png" width="100%" alt="KinectAnimationStudio"/>
+			</div>
+
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item"><a href="index.html" class="pure-menu-link">About</a></li>
+                <li class="pure-menu-item pure-menu-selected"><a href="usage.html" class="pure-menu-link">Usage</a></li>
+
+                <li class="pure-menu-item" class="menu-item-divided pure-menu-selected">
+                    <a href="build.html" class="pure-menu-link">Build Instructions</a>
+                </li>
+								<li class="pure-menu-item" class="menu-item-divided pure-menu-selected">
+                    <a href="https://github.com/marcojrfurtado/KinectAnimationStudio" class="pure-menu-link">Source</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="main">
+
+        <div class="header">
+            <h1>Instructions</h1>
+            <h2>Quick start guide on how to use the tool.</h2>
+        </div>
+		
+        <div class="content">
+            <h2 class="content-subhead">Video</h2>
+            <p>
+                The following video demonstrates how a simple clip is converted to motion data, and then imported into Autodesk MotionBuilder, where it can be used to animate a 3D model. 
+				If you prefer a written tutorial, you can scroll on.
+				<div class="pure-u-5-5">
+
+					 <iframe width="854px" height="480px"
+						src="https://www.youtube.com/embed/-HzKAuOtnM0">
+					</iframe> 
+				</div>
+
+            <p>
+			
+			<h2 class="content-subhead">Tutorial</h2>
+            <p>
+               <ol class="textlist">
+					<li>Prepare Data</li>
+					<p>
+						KinectAnimationStudio supports two input modes: live capture and pre-recorded data. In case you want to use live capture, simply make sure the Kinect Sensor is connected to your machine.
+						For pre-recorded data, you need to open a Kinect recording file (.xef) through Kinect Studio, and make sure it is connected to Kinect service, as follows:
+						
+					<div class="pure-u-5-5">
+						<img class="pure-img-responsive" src="resources/tutorial/ks.PNG" alt="Kinect Studio">
+					</div>
+						KinectAnimationStudio runs together with Kinect Studio.
+					</p>
+					
+					<li>Run KinectAnimationStudio</li>
+					<p>
+						First, select the output FBX file, where the motion data will be written. Second, click on "Start Recording".
+						At this moment, any incoming frame from the sensor will be saved (for live capture). If Kinect Studio is being used, there is more control over your data, since only played frames will be recorded. 
+						For this reason, ensure that correct starting and ending points are selected. Third, click on "Stop Recording", motion data should be on the file.
+						<div class="pure-u-5-5">
+							<img class="pure-img-responsive" src="resources/tutorial/kas.PNG" alt="KinectAnimationStudio">
+						</div>
+					</p>
+				</ol>
+            </p>
+			
+			<h2 class="content-subhead">Output FBX Data</h2>
+            <p>
+				Here is a list of important considerations about the data that is generated.
+				
+				<h3 class="content-subhead">Skeleton follows Autodesk MotionBuilder joint naming convention</h3>
+				<p>
+					We decided to follow MoBu's naming convention to make it easier to animate rigged skeletons. 
+					The exported skeleton can be characterized in MotionBuilder on a single-click.
+					
+					<div class="pure-g">
+						<div class="pure-u-1-2">
+							<img class="pure-img-responsive" src="resources/tutorial/mobu_charac.PNG" >
+						</div>
+						<div class="pure-u-1-2">
+							<img class="pure-img-responsive" src="resources/tutorial/mobu_rigged.PNG">
+						</div>
+					</div>
+				</p>
+				
+				<h3 class="content-subhead">Pre-Rotation for T-Pose</h3>
+				
+				<p>
+					Kinect orientation data is not exactly aligned to the floor plane. This means that when exported, the skeleton will be slightly inclined throughout the whole clip.
+					For this reason, we assume that, on the first frame, the skeleton hips are orthogonal to the floor. Based on this assumption, the orientation of the skeleton's hip joint is corrected by adding 
+					some pre-rotation around the x-axis (value should vary for each clip). If pre-rotation is not desired, it can be easily disabled on the exported data. For example, you can use MotionBuilder as follows:
+					<div class="pure-u-5-5">
+							<img class="pure-img-responsive" src="resources/tutorial/disable_prerot.PNG" alt="Disable Pre-Rotation">
+					</div>
+				</p>
+				
+				<h3 class="content-subhead">Smooth your data!</h3>
+				
+				<p>
+					Kinect Skeleton data is extremely noisy. You will probably notice a lot of twitching both on Kinect Studio, as well as on the exported FBX data. 
+					I decided not to add any quaternion smoothing technique to KinectAnimationStudio, since smoothing is already widely available for FBX data. 
+					To smooth your skeleton on MotionBuilder, simply select all skeleton joints and apply apply the smooth filter.
+				</p>
+
+				
+				<h3 class="content-subhead">Missing Roll rotation</h3>
+				
+				<p>
+					There is no roll rotation for feet and head joints. This is due to a limitation from the Kinect sensor. 
+					Quaternion information for each joint refers to its parent bone, except for end-joints. For these joints, there is no valid quaternion data. 
+					In KinectAnimationStudio, we estimate their orientation based on positional data. However, we cannot estimate roll rotation based only on positional data.
+				</p>
+            </p>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<script src="js/ui.js"></script>
+
+
+</body>
+</html>
